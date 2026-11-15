@@ -11,9 +11,11 @@
   - [x] Gamma catalog crawler (keyset, `closed` both ways). **Full crawl RUNNING in background** (closed-market ids reach ~7M; crawl takes hours). Partial `data/markets.parquet` (56KB, 3-page smoke) will be overwritten when it completes — check `ps aux | grep build_catalog`; relaunch `uv run python scripts/build_catalog.py` if dead (page cache makes re-runs cheap).
   - [x] `chain_condition_map.parquet` BUILT: 1.117M conditions, 992k resolved, token order verified == Gamma. Pass 2 and payouts do NOT wait on the Gamma crawl; the crawl supplies resolved_ts/categories/events for features and backtest.
   - [x] Universe pass 1 DONE: 8.24M wallet-months, 2.63M wallets; loose candidates 532k (96.6% vol); extraction set per d-013: 164,576 wallets (33% vol, 313M legs) in `data/universe/candidates_extract.parquet`.
-  - [⏳] Pass 2 (fills_norm + prices_5m) RUNNING: `scratchpad/pass2.log`, was [13/28] monthly files at ~80s. 2026 months are 8-sliced; resumable (re-run `scripts/build_fills.py`).
-  - [⏳] wallet_events + wallet_map RUNNING: `scratchpad/wallet_events.log` (`scripts/build_wallet_events.py`, resumable).
-  - [ ] Sanity checks (§9 Phase 1.6) + `reports/phase-1.md`.
+  - [x] Pass 2 (fills_norm + prices_5m) DONE and REBUILT after the d-014 event-semantics fix: 170.8M owner legs (2.9G) + aggressor tape (1.6G), 56/56 slices.
+  - [x] wallet_events (33.4M rows) + wallet_map (163k) DONE.
+  - [x] Sanity checks PASS: mapping coverage 100.00% (3 sample months); matched volume ≈ 0.5x public event-summed figures consistently; API cross-check 19/20 (misses are fee-netting, d-015).
+  - [⏳] Position validation vs user_position RUNNING (`scratchpad/validate.log`).
+  - [ ] `reports/phase-1.md`.
   - [ ] API backfill deferred by design to Phase 3 Holdout-B time (DECISIONS d-012).
 - **Phase 2 (wallet analytics): code DONE, data pending.** positions.py (+tests), pnl.py vectorized market returns (+tests), skill.py sign-test/BH/score (+tests), features.py as-of pipeline (+synthetic tests), select.py both methods (+tests). To run: `scripts/build_features.py` (needs catalog + pass 2), then validation vs user_position (§9 Ph2.2), replication check (Ph2.4), landscape report (Ph2.5).
 - **Phase 3 (backtest): engine + harness DONE on synthetic, real run pending.** engine.py (11 tests), fills_backtest.py execution model (tests), fees.py (spec worked examples), stats.py event bootstrap (tests), baselines.py B0 (calibrated-world test), **leakage test in CI**, data.py loader, experiments.py registry, run_backtest.py CLI with overrides.
