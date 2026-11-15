@@ -117,9 +117,7 @@ class Engine:
         self.books: dict[str, WalletBook] = {}
         self.fill_ptr: dict[str, int] = {}
         # (wallet, cond) -> [(ts, signed_usdc, signed_shares, yes_px*shares)]
-        self.flows: dict[tuple[str, str], list[tuple[int, float, float, float]]] = defaultdict(
-            list
-        )
+        self.flows: dict[tuple[str, str], list[tuple[int, float, float, float]]] = defaultdict(list)
         self.episode_entered: dict[tuple[str, int], bool] = {}
         self.watched: list[str] = []
         self.median_cost: dict[str, float] = {}
