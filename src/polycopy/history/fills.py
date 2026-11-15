@@ -97,15 +97,17 @@ ORDER BY 1, 2
 
 
 def register_reference_tables(con: duckdb.DuckDBPyConnection) -> None:
-    """token_map from the catalog; candidates from pass 1."""
+    """token_map from the on-chain condition table (complete through 2026-04-24,
+    token order verified against Gamma); candidates from pass 1."""
+    chain_map = paths.DATA / "chain_condition_map.parquet"
     con.sql(
         f"""
         CREATE OR REPLACE TEMP VIEW token_map AS
         SELECT yes_token_id AS token_id, condition_id, TRUE AS is_yes
-        FROM read_parquet('{paths.MARKETS_PARQUET}')
+        FROM read_parquet('{chain_map}')
         UNION ALL
         SELECT no_token_id, condition_id, FALSE
-        FROM read_parquet('{paths.MARKETS_PARQUET}')
+        FROM read_parquet('{chain_map}')
         """
     )
     con.sql(

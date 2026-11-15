@@ -24,13 +24,7 @@ WEEK_S = 7 * 86_400
 
 def ttr_bucket(hours: pl.Expr) -> pl.Expr:
     return (
-        pl.when(hours < 24)
-        .then(0)
-        .when(hours < 168)
-        .then(1)
-        .when(hours < 720)
-        .then(2)
-        .otherwise(3)
+        pl.when(hours < 24).then(0).when(hours < 168).then(1).when(hours < 720).then(2).otherwise(3)
     )
 
 
@@ -100,9 +94,7 @@ def b0_sample(
         cells = pool_by_key.get(key)
         if cells is None:
             continue
-        m = cells.filter(
-            (pl.col("taker_buy_vwap") - t["entry_price"]).abs() <= price_tol_c / 100
-        )
+        m = cells.filter((pl.col("taker_buy_vwap") - t["entry_price"]).abs() <= price_tol_c / 100)
         if m.height == 0:
             continue
         take = min(n_per_trade, m.height)
