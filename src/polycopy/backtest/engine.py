@@ -301,7 +301,8 @@ class Engine:
         event_room = equity * sz.max_event_pct / 100.0 - self.event_exposure[m.event_id]
         deployed = sum(p.cost for p in self.positions.values())
         deploy_room = equity * sz.max_deployed_pct / 100.0 - deployed
-        notional = min(notional, event_room, deploy_room, self.cash)
+        # keep ~3% headroom for the taker fee so cash never goes negative
+        notional = min(notional, event_room, deploy_room, self.cash * 0.97)
         tape = self.data.tapes.get(m.yes_token if direction > 0 else m.no_token)
         if tape is not None:
             trail = tape.trailing_volume(tick, 1.0)
@@ -312,15 +313,18 @@ class Engine:
 
     def _enter(
         self, m: MarketMeta, direction: int, wallets: list[str], vwap_yes: float, tick: int
-    ) -> None:
+    ) -> bool:
+        """Attempt the entry. True = an order was placed (consumes the episode);
+        False = a guard blocked it, leaving the episode open for retry, which is
+        what the live paper trader would do on its next tick."""
         sized = self._guards_and_size(m, direction, vwap_yes, tick)
         if sized is None:
-            return
+            return False
         notional, price_now, chase_cap = sized
         token = m.yes_token if direction > 0 else m.no_token
         tape = self.data.tapes.get(token)
         if tape is None:
-            return
+            return False
         ex = self.cfg.execution
         t_exec = tick + ex.latency_minutes * 60
         sid = self.next_signal_id
@@ -364,7 +368,7 @@ class Engine:
                     "status": "unfillable",
                 }
             )
-            return
+            return True
         shares = notional / fill.price
         fee = pm_us_fee(shares, fill.price, self.cfg.fees.polymarket_us.theta)
         self.cash -= notional + fee
@@ -397,6 +401,7 @@ class Engine:
                 "status": "open",
             }
         )
+        return True
 
     def _signal_cost(self, cond: str, wallets: tuple[str, ...] | list[str], d: int) -> float:
         total = 0.0
@@ -526,15 +531,16 @@ class Engine:
                 key = (cond, direction)
                 if self.episode_entered.get(key):
                     continue  # one entry per episode
-                self.episode_entered[key] = True
                 if cond in self.positions:
+                    self.episode_entered[key] = True
                     continue
                 if any(
                     self.data.markets[p.condition_id].event_id == m.event_id
                     for p in self.positions.values()
                 ):
-                    continue  # no duplicates per event
-                self._enter(m, direction, wallets, vwap, tick)
+                    continue  # event already held: retry when it frees up
+                if self._enter(m, direction, wallets, vwap, tick):
+                    self.episode_entered[key] = True
             day = tick // DAY_S
             if day != last_day:
                 last_day = day
