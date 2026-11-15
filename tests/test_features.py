@@ -195,9 +195,7 @@ def test_lookback_applies_to_resolution_not_entry():
 
 def test_seeded_determinism():
     markets = _mk_markets(8)
-    rows = [
-        _buy("w", f"c{i}", ASOF - (i + 3) * DAY, 0.55, 400, yes=(i % 2 == 0)) for i in range(8)
-    ]
+    rows = [_buy("w", f"c{i}", ASOF - (i + 3) * DAY, 0.55, 400, yes=(i % 2 == 0)) for i in range(8)]
     fills = pl.DataFrame(rows).lazy()
     events = pl.DataFrame(
         schema={

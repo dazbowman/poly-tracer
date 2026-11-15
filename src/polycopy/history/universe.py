@@ -28,6 +28,9 @@ WITH f AS (
          TRY_CAST(takerAmountFilled AS HUGEINT) AS tamt,
          TRY_CAST("timestamp" AS BIGINT) AS ts
   FROM read_parquet(?)
+  -- ts slice on the RAW string: equal-length digit strings compare
+  -- lexicographically like numbers, so parquet zone maps can prune
+  WHERE "timestamp" >= ? AND "timestamp" < ?
 ),
 legs AS (
   SELECT m AS wallet, TRUE AS is_maker,
@@ -84,28 +87,58 @@ def list_fill_files(con: duckdb.DuckDBPyConnection, years: list[int]) -> list[st
     return files
 
 
-def out_path_for(remote_file: str) -> Path:
-    # .../order_filled/year=2024/part-0003.parquet -> 2024_part-0003.parquet
+def out_path_for(remote_file: str, slice_idx: int = 0) -> Path:
+    # .../order_filled/year=2024/month=03.parquet -> 2024_month=03_s0.parquet
     parts = remote_file.split("/")
     year = parts[-2].split("=")[1]
-    return paths.UNIVERSE_DIR / "wallet_month" / f"{year}_{parts[-1]}"
+    stem = parts[-1].removesuffix(".parquet")
+    return paths.UNIVERSE_DIR / "wallet_month" / f"{year}_{stem}_s{slice_idx}.parquet"
 
 
-def process_file(con: duckdb.DuckDBPyConnection, remote_file: str) -> Path:
-    out = out_path_for(remote_file)
-    if out.exists():
-        log.info("skip (exists): %s", out.name)
-        return out
-    out.parent.mkdir(parents=True, exist_ok=True)
+def ts_slices(remote_file: str, n_slices: int) -> list[tuple[str, str]]:
+    """Equal time slices of the file's month as raw 10-digit-string bounds."""
+    import itertools
+    from datetime import UTC, datetime
+
+    parts = remote_file.split("/")
+    year = int(parts[-2].split("=")[1])
+    month = int(parts[-1].removesuffix(".parquet").split("=")[1])
+    t0 = int(datetime(year, month, 1, tzinfo=UTC).timestamp())
+    t1 = int(datetime(year + (month == 12), month % 12 + 1, 1, tzinfo=UTC).timestamp())
+    edges = [t0 + (t1 - t0) * i // n_slices for i in range(n_slices)] + [t1]
+    # widen the outermost bounds: chain ts can straggle outside the calendar month
+    bounds = [str(e) for e in edges]
+    bounds[0] = "0000000000"
+    bounds[-1] = "9999999999"
+    return list(itertools.pairwise(bounds))
+
+
+def process_file(con: duckdb.DuckDBPyConnection, remote_file: str, n_slices: int = 1) -> None:
+    todo = [
+        (i, lo, hi)
+        for i, (lo, hi) in enumerate(ts_slices(remote_file, n_slices))
+        if not out_path_for(remote_file, i).exists()
+    ]
+    if not todo:
+        log.info("skip (exists): %s", remote_file.split("/")[-1])
+        return
     no_cash = con.sql(NO_CASH_LEG_SQL, params=[remote_file]).fetchall()[0][0]
     if no_cash:
         log.warning("%s: %d fills with no USDC leg (excluded from volume)", remote_file, no_cash)
-    df = con.sql(WALLET_MONTH_SQL, params=[remote_file]).pl()
-    tmp = out.with_suffix(".tmp.parquet")
-    df.write_parquet(tmp, compression="zstd")
-    tmp.replace(out)
-    log.info("%s -> %s (%d wallet-months)", remote_file.split("/")[-1], out.name, len(df))
-    return out
+    for i, lo, hi in todo:
+        out = out_path_for(remote_file, i)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        df = con.sql(WALLET_MONTH_SQL, params=[remote_file, lo, hi]).pl()
+        tmp = out.with_suffix(".tmp.parquet")
+        df.write_parquet(tmp, compression="zstd")
+        tmp.replace(out)
+        log.info(
+            "%s slice %d/%d -> %d wallet-months",
+            remote_file.split("/")[-1],
+            i + 1,
+            n_slices,
+            len(df),
+        )
 
 
 def combine_wallet_month() -> pl.DataFrame:

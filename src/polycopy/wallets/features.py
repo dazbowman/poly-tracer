@@ -25,9 +25,7 @@ def activity_features(fills_lb: pl.LazyFrame, markets: pl.LazyFrame) -> pl.LazyF
     f = fills_lb.join(cat, on="condition_id", how="left")
     base = f.group_by("wallet").agg(
         volume_usdc=pl.col("usdc").sum(),
-        maker_share=(
-            pl.col("usdc").filter(pl.col("role") == "maker").sum() / pl.col("usdc").sum()
-        ),
+        maker_share=(pl.col("usdc").filter(pl.col("role") == "maker").sum() / pl.col("usdc").sum()),
         n_fills=pl.len(),
         last_trade_ts=pl.col("ts").max(),
         first_trade_ts=pl.col("ts").min(),
@@ -60,7 +58,8 @@ def activity_features(fills_lb: pl.LazyFrame, markets: pl.LazyFrame) -> pl.LazyF
         .group_by("wallet")
         .agg(
             two_sided_share=(
-                2.0 * pl.min_horizontal(pl.col("b"), pl.col("s")).sum()
+                2.0
+                * pl.min_horizontal(pl.col("b"), pl.col("s")).sum()
                 / (pl.col("b") + pl.col("s")).sum()
             )
         )
@@ -85,9 +84,7 @@ def skill_features(mkt_rets: pl.DataFrame, *, n0: int, seed: int = 1729) -> pl.D
         n_resolved_markets=pl.col("condition_id").n_unique(),
         resolved_cost_usdc=pl.col("buys_usdc").sum(),
         resolved_pnl_usdc=pl.col("pnl_usdc").sum(),
-        top_market_pnl_share=(
-            pl.col("pnl_usdc").abs().max() / pl.col("pnl_usdc").abs().sum()
-        ),
+        top_market_pnl_share=(pl.col("pnl_usdc").abs().max() / pl.col("pnl_usdc").abs().sum()),
         costs=pl.col("buys_usdc"),
         rets=pl.col("r"),
     )
@@ -98,13 +95,10 @@ def skill_features(mkt_rets: pl.DataFrame, *, n0: int, seed: int = 1729) -> pl.D
         r = rets.to_numpy().astype(float)
         pvals.append(sign_flip_pvalue(c, r, rng=rng))
         scores.append(shrunk_lcb_score(c, r, n0=n0))
-    return (
-        grouped.drop("costs", "rets")
-        .with_columns(
-            skill_pvalue=pl.Series(pvals, dtype=pl.Float64),
-            score=pl.Series(scores, dtype=pl.Float64),
-            roi_cost_weighted=pl.col("resolved_pnl_usdc") / pl.col("resolved_cost_usdc"),
-        )
+    return grouped.drop("costs", "rets").with_columns(
+        skill_pvalue=pl.Series(pvals, dtype=pl.Float64),
+        score=pl.Series(scores, dtype=pl.Float64),
+        roi_cost_weighted=pl.col("resolved_pnl_usdc") / pl.col("resolved_cost_usdc"),
     )
 
 
