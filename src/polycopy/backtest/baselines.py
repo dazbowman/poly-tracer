@@ -86,6 +86,9 @@ def b0_sample(
     """
     rng = np.random.default_rng(seed)
     out_rows = []
+    # polars join/filter row order is thread-dependent; sort so rng indexing
+    # is reproducible
+    pool = pool.sort("token_id", "bucket_ts")
     pool_by_key = pool.partition_by(["category", "ttr_b", "week"], as_dict=True)
     for i, t in enumerate(strategy_trades.iter_rows(named=True)):
         ttr_h = (t["end_s"] - t["entry_ts"]) / 3600

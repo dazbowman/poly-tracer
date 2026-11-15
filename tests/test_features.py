@@ -170,8 +170,10 @@ def test_lookback_applies_to_resolution_not_entry():
     for i in range(6):
         # entries BEFORE the lookback window, resolutions inside it
         rows.append(_buy("w", f"c{i}", lb_start - 30 * DAY, 0.60, 500, yes=(i % 2 == 0)))
-        # plus some in-window activity so activity gates pass
-        rows.append(_buy("w", f"c{i}", ASOF - 2 * DAY, 0.60, 200, yes=(i % 2 == 0)))
+        # plus in-window adds 1h before each market's resolution (fills after
+        # resolution can't exist on-chain and are clamped out by market_returns)
+        resolved_s = (ASOF - (i + 2) * DAY) - 3600
+        rows.append(_buy("w", f"c{i}", resolved_s, 0.60, 200, yes=(i % 2 == 0)))
     fills = pl.DataFrame(rows).lazy()
     events = pl.DataFrame(
         schema={
@@ -210,3 +212,28 @@ def test_seeded_determinism():
     a = build_features_asof(fills, events, markets.lazy(), asof_ts=ASOF, cfg=CFG)
     b = build_features_asof(fills, events, markets.lazy(), asof_ts=ASOF, cfg=CFG)
     assert np.allclose(a["skill_pvalue"].to_numpy(), b["skill_pvalue"].to_numpy())
+
+
+def test_precomputed_mkt_rets_path_is_equivalent():
+    from polycopy.wallets.pnl import market_returns
+
+    markets = _mk_markets(10)
+    rows = []
+    for i in range(10):
+        rows.append(_buy("w", f"c{i}", ASOF - (i + 3) * DAY, 0.55, 600, yes=(i % 2 == 0)))
+        rows.append(_buy("v", f"c{i}", ASOF - (i + 3) * DAY, 0.50, 800, yes=(i % 3 == 0)))
+    fills = pl.DataFrame(rows).lazy()
+    events = pl.DataFrame(
+        schema={
+            "kind": pl.Utf8,
+            "wallet": pl.Utf8,
+            "condition_id": pl.Utf8,
+            "ts": pl.Int64,
+            "amount_usdc": pl.Float64,
+            "extra": pl.Utf8,
+        }
+    ).lazy()
+    pre = market_returns(fills, markets.lazy()).collect().lazy()
+    a = build_features_asof(fills, events, markets.lazy(), asof_ts=ASOF, cfg=CFG)
+    b = build_features_asof(fills, events, markets.lazy(), asof_ts=ASOF, cfg=CFG, mkt_rets_all=pre)
+    assert a.sort("wallet").equals(b.sort("wallet"))

@@ -92,14 +92,21 @@ def skill_features(mkt_rets: pl.DataFrame, *, n0: int, seed: int = 1729) -> pl.D
         resolved_cost_usdc=pl.col("buys_usdc").sum(),
         resolved_pnl_usdc=pl.col("pnl_usdc").sum(),
         top_market_pnl_share=(pl.col("pnl_usdc").abs().max() / pl.col("pnl_usdc").abs().sum()),
-        costs=pl.col("buys_usdc"),
-        rets=pl.col("r"),
+        # canonical order: the exact-flip p-value pairs rng draws with array
+        # positions, so group-internal row order must not leak in
+        costs=pl.col("buys_usdc").sort_by(pl.col("condition_id")),
+        rets=pl.col("r").sort_by(pl.col("condition_id")),
     )
-    rng = np.random.default_rng(seed)
     pvals, scores = [], []
-    for costs, rets in zip(grouped["costs"], grouped["rets"], strict=True):
+    for wallet, costs, rets in zip(
+        grouped["wallet"], grouped["costs"], grouped["rets"], strict=True
+    ):
         c = costs.to_numpy().astype(float)
         r = rets.to_numpy().astype(float)
+        # per-wallet RNG stream: p-values must not depend on group iteration
+        # order (polars group_by order is unstable)
+        wallet_seed = int.from_bytes(wallet[-8:].encode(), "little") % (2**31)
+        rng = np.random.default_rng([seed, wallet_seed])
         pvals.append(sign_flip_pvalue(c, r, rng=rng))
         scores.append(shrunk_lcb_score(c, r, n0=n0))
     return grouped.drop("costs", "rets").with_columns(
@@ -142,18 +149,22 @@ def build_features_asof(
     *,
     asof_ts: int,
     cfg: Config,
+    mkt_rets_all: pl.LazyFrame | None = None,
 ) -> pl.DataFrame:
-    """One row per wallet meeting the §7.1 candidate gates, with label."""
+    """One row per wallet meeting the §7.1 candidate gates, with label.
+
+    mkt_rets_all: optional precomputed market_returns(fills, markets) — rows are
+    as-of independent (fills clamped to resolution), so passing it is exactly
+    equivalent and much faster across many refresh dates.
+    """
     lb_start = asof_ts - cfg.universe.lookback_days * DAY_S
-    fills_asof = fills.filter(pl.col("ts") < asof_ts)
-    fills_lb = fills_asof.filter(pl.col("ts") >= lb_start)
+    fills_lb = fills.filter((pl.col("ts") < asof_ts) & (pl.col("ts") >= lb_start))
 
     # skill inputs: markets resolved inside [lb_start, asof), whole fill history
-    rets = (
-        market_returns(fills_asof, markets, asof_ts=asof_ts)
-        .filter(pl.col("resolved_s") >= lb_start)
-        .collect()
-    )
+    rets_lazy = mkt_rets_all if mkt_rets_all is not None else market_returns(fills, markets)
+    rets = rets_lazy.filter(
+        (pl.col("resolved_s") < asof_ts) & (pl.col("resolved_s") >= lb_start)
+    ).collect()
     act = activity_features(fills_lb, markets).collect()
     ev = (
         wallet_events.filter((pl.col("ts") >= lb_start) & (pl.col("ts") < asof_ts))
