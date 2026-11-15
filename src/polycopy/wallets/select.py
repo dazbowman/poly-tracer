@@ -21,9 +21,13 @@ EXCLUDED_LABELS = ("market_maker", "bot_arb", "one_hit")
 
 
 def marks_asof(prices_5m: pl.LazyFrame, ts: int) -> pl.LazyFrame:
-    """Last traded price per token at or before ts (epoch seconds)."""
+    """Last traded price per token strictly before ts (epoch seconds).
+
+    Strict: a bucket at bucket_ts == ts covers [ts, ts+300) — trades after the
+    as-of instant (SPEC §0.7).
+    """
     return (
-        prices_5m.filter(pl.col("bucket_ts") <= ts)
+        prices_5m.filter(pl.col("bucket_ts") < ts)
         .group_by("token_id")
         .agg(mark=pl.col("last_price").sort_by("bucket_ts").last())
     )

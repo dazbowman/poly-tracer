@@ -58,6 +58,13 @@ Endpoint quirks, schemas, and verification results (SPEC §3). Probes: `uv run p
 - `wallet.parquet`: `id, signer, type, balance, lastTransfer, createdAt` (id = proxy/Safe address, signer = EOA).
 - Address casing differs between tables (EIP-55): always compare with `lower()`.
 
+## Gamma catalog crawl result (2026-11-15)
+
+- Full `/markets/keyset` crawl (`end_date_min=2023-09-01`, both `closed` states): **5,648,486 unique markets** (~6.5h wall at ~4 rps×100/page; the id keyspace runs to ~7M). closed=true: 5,472,627; closed=false: 175,859. By bucket: sports 3.69M, crypto_short 881k, esports 385k, crypto 297k, weather 201k, economics_finance 71k, politics 59k, culture 26k, geopolitics 18k, tech_ai 14k, other 2.2k.
+- **Quality:** zero duplicate condition_ids; resolved markets carry payout 100% and `closedTime` 99.997%; payout agrees with on-chain `condition.parquet` on **876,332/876,332** overlapping resolved conditions (the chain map's other ~116k resolved conditions end before the 2023-09-01 crawl floor).
+- **Fills coverage:** 757,787 of 760,093 distinct fills_norm conditions are in the catalog (99.70%). The 2,306 missing (+63 resolved-without-ts) are excluded from returns/features — a 0.3% loss, chain payouts can't substitute because category/resolved_ts are Gamma-only.
+- One transient `RemoteProtocolError` over the whole crawl (retried fine). Keyset cursor resume (d: `scripts/build_catalog.py` checkpoint) verified in anger — the first, uncheckpointed attempt died at a 2h runner limit with nothing on disk.
+
 ## Rate limits
 
 No numeric limits published for any of these hosts; nothing hit 429 at our probe pace. Client policy (SPEC §0.4): ≤5 req/s per host, exponential backoff, honor `Retry-After`, descriptive UA `polycopy-research/0.x`.

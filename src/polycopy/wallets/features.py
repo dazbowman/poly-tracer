@@ -162,10 +162,24 @@ def build_features_asof(
 
     # skill inputs: markets resolved inside [lb_start, asof), whole fill history
     rets_lazy = mkt_rets_all if mkt_rets_all is not None else market_returns(fills, markets)
-    rets = rets_lazy.filter(
+    rets_lazy = rets_lazy.filter(
         (pl.col("resolved_s") < asof_ts) & (pl.col("resolved_s") >= lb_start)
-    ).collect()
+    )
     act = activity_features(fills_lb, markets).collect()
+    # The sign-flip loop is per-wallet python+numpy, so restrict it to wallets
+    # that can pass the §7.1 gates below (per-wallet RNG seeds and the post-gate
+    # BH make this a pure speedup: kept rows are byte-identical)
+    gate_wallets = (
+        act.lazy()
+        .join(rets_lazy.group_by("wallet").agg(nrm=pl.len()), on="wallet", how="inner")
+        .filter(
+            (pl.col("nrm") >= cfg.universe.min_resolved_markets)
+            & (pl.col("volume_usdc") >= cfg.universe.min_volume_usd)
+            & (pl.col("last_trade_ts") >= asof_ts - cfg.universe.active_within_days * DAY_S)
+        )
+        .select("wallet")
+    )
+    rets = rets_lazy.join(gate_wallets, on="wallet", how="semi").collect()
     ev = (
         wallet_events.filter((pl.col("ts") >= lb_start) & (pl.col("ts") < asof_ts))
         .filter(pl.col("kind").is_in(["split", "merge", "convert"]))

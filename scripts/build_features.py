@@ -1,8 +1,9 @@
 """Build the weekly as-of features cache + naive window PnL for selection.
 
 Usage: uv run python scripts/build_features.py [--start 2024-06-24] [--end 2026-04-20]
-Writes data/features/asof=<date>.parquet (one per Monday 00:00 UTC) and
-data/week_marks.parquet (token last-price snapshot per week, built once).
+Writes data/market_returns/bucket_*.parquet (one-time precompute), then per
+Monday 00:00 UTC data/features/asof=<date>.parquet (candidate features+labels)
+and data/features/naive=<date>.parquet (leaderboard-style window PnL).
 
 Requires: markets.parquet (Gamma crawl), chain_condition_map.parquet,
 fills_norm/, prices_5m/, wallet_events.parquet.
@@ -21,10 +22,31 @@ import polars as pl
 from polycopy import paths
 from polycopy.config import Config
 from polycopy.wallets.features import build_features_asof
+from polycopy.wallets.pnl import market_returns
 from polycopy.wallets.select import window_marked_pnl
 
 log = logging.getLogger("build_features")
 DAY_S = 86_400
+RETS_DIR = paths.DATA / "market_returns"
+
+
+def build_market_returns(fills: pl.LazyFrame, markets: pl.LazyFrame) -> None:
+    """One-time precompute of as-of-independent market returns (pnl.py docstring).
+
+    Partitioned by first wallet hex char so each group-by holds ~1/4 of the
+    170M-leg history; atomic per-bucket writes make a killed run resumable.
+    """
+    RETS_DIR.mkdir(parents=True, exist_ok=True)
+    for g in ("0123", "4567", "89ab", "cdef"):
+        out = RETS_DIR / f"bucket_{g}.parquet"
+        if out.exists():
+            continue
+        t = time.time()
+        sub = fills.filter(pl.col("wallet").str.slice(2, 1).is_in(list(g)))
+        tmp = out.with_suffix(".tmp")
+        market_returns(sub, markets).sink_parquet(tmp, compression="zstd")
+        tmp.rename(out)
+        log.info("market_returns bucket %s done (%.0fs)", g, time.time() - t)
 
 
 def mondays(start: str, end: str) -> list[int]:
@@ -65,6 +87,9 @@ def main() -> int:
     events = pl.scan_parquet(paths.DATA / "wallet_events.parquet")
     prices = pl.scan_parquet(paths.PRICES_DIR / "*.parquet")
 
+    build_market_returns(fills, markets)
+    mkt_rets_all = pl.scan_parquet(RETS_DIR / "bucket_*.parquet")
+
     dates = mondays(args.start, args.end)
     log.info("%d weekly refresh dates", len(dates))
     t0 = time.time()
@@ -73,7 +98,9 @@ def main() -> int:
         f_out = out_dir / f"asof={tag}.parquet"
         n_out = out_dir / f"naive={tag}.parquet"
         if not f_out.exists():
-            df = build_features_asof(fills, events, markets, asof_ts=asof, cfg=cfg)
+            df = build_features_asof(
+                fills, events, markets, asof_ts=asof, cfg=cfg, mkt_rets_all=mkt_rets_all
+            )
             df.write_parquet(f_out, compression="zstd")
             log.info(
                 "[%d/%d] %s: %d candidates (%.0fs)", i, len(dates), tag, df.height, time.time() - t0
@@ -81,6 +108,14 @@ def main() -> int:
         if not args.skip_naive and not n_out.exists():
             naive = window_marked_pnl(fills, prices, t0=asof - 30 * DAY_S, t1=asof)
             naive.write_parquet(n_out, compression="zstd")
+            log.info(
+                "[%d/%d] %s: naive pnl %d wallets (%.0fs)",
+                i,
+                len(dates),
+                tag,
+                naive.height,
+                time.time() - t0,
+            )
     return 0
 
 

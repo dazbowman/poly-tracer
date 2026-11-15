@@ -2,34 +2,33 @@
 
 > Read this first when resuming. Keep it current: what's done, what's next, open blockers.
 
-**Last updated:** 2026-11-15 ~01:10 UTC (session 1)
+**Last updated:** 2026-11-15 ~07:30 UTC (session 1)
 
 ## Where things stand
 
-- **Phase 0 (bootstrap): DONE.** 28/28 endpoint probes pass, fixtures committed, DATA_NOTES filled, CI green on `claude/dreamy-gates-8wlal5`.
-- **Phase 1 (data layer): ~70%, long jobs running.**
-  - [⏳] Gamma catalog crawl RUNNING (relaunched ~01:55 UTC, detached + checkpointed after the first 2h attempt was killed by a runner limit with all progress in memory). Parts land in `data/catalog_parts/` every 50k markets; `uv run python scripts/build_catalog.py` resumes from the checkpoint if it dies. Watch: `scratchpad/catalog2.log`.
-  - [x] `chain_condition_map.parquet` BUILT: 1.117M conditions, 992k resolved, token order verified == Gamma. Pass 2 and payouts do NOT wait on the Gamma crawl; the crawl supplies resolved_ts/categories/events for features and backtest.
-  - [x] Universe pass 1 DONE: 8.24M wallet-months, 2.63M wallets; loose candidates 532k (96.6% vol); extraction set per d-013: 164,576 wallets (33% vol, 313M legs) in `data/universe/candidates_extract.parquet`.
-  - [x] Pass 2 (fills_norm + prices_5m) DONE and REBUILT after the d-014 event-semantics fix: 170.8M owner legs (2.9G) + aggressor tape (1.6G), 56/56 slices.
-  - [x] wallet_events (33.4M rows) + wallet_map (163k) DONE.
-  - [x] Sanity checks PASS: mapping coverage 100.00% (3 sample months); matched volume ≈ 0.5x public event-summed figures consistently; API cross-check 19/20 (misses are fee-netting, d-015).
-  - [⏳] Position validation vs user_position RUNNING (`scratchpad/validate.log`).
-  - [ ] `reports/phase-1.md`.
+- **Phase 0 (bootstrap): DONE** (issue #1). 28/28 endpoint probes pass, fixtures committed, DATA_NOTES filled, CI green on `claude/dreamy-gates-8wlal5`.
+- **Phase 1 (data layer): DONE** (issue #2, `reports/phase-1.md`).
+  - [x] Gamma catalog DONE: `data/markets.parquet`, 5,648,486 unique markets, resolved payout coverage 100%, resolved_ts 99.997%, payout agreement with chain map 876,332/876,332, fills-condition coverage 99.70% (see DATA_NOTES "Gamma catalog crawl result").
+  - [x] `chain_condition_map.parquet`: 1.117M conditions, 992k resolved, token order verified == Gamma.
+  - [x] Universe pass 1: 8.24M wallet-months, 2.63M wallets; extraction set per d-013: 164,576 wallets in `data/universe/candidates_extract.parquet`.
+  - [x] Pass 2 (fills_norm + prices_5m) REBUILT after d-014: 170.8M owner legs (2.9G), 760k conditions + aggressor tape (1.6G), 56/56 slices.
+  - [x] wallet_events (33.4M rows) + wallet_map (163k).
+  - [x] Sanity checks: mapping coverage 100.00% (3 sample months); API cross-check 19/20 (d-015); position replay vs user_position median |err| 0.002%.
   - [ ] API backfill deferred by design to Phase 3 Holdout-B time (DECISIONS d-012).
-- **Phase 2 (wallet analytics): code DONE, data pending.** positions.py (+tests), pnl.py vectorized market returns (+tests), skill.py sign-test/BH/score (+tests), features.py as-of pipeline (+synthetic tests), select.py both methods (+tests). To run: `scripts/build_features.py` (needs catalog + pass 2), then validation vs user_position (§9 Ph2.2), replication check (Ph2.4), landscape report (Ph2.5).
+- **Phase 2 (wallet analytics): code DONE (validation §9 Ph2.2 already PASSED), features cache building.**
+  - [⏳] `scripts/build_features.py` RUNNING detached (log: `scratchpad/features.log`): one-time `data/market_returns/bucket_*.parquet` precompute, then ~96 Mondays of `data/features/asof=*.parquet` + `naive=*.parquet`. Resumable per-file; just rerun the same command if it dies.
+  - Then: replication check (Ph2.4), landscape report (Ph2.5) → `reports/phase-2.md`, issue.
 - **Phase 3 (backtest): engine + harness DONE on synthetic, real run pending.** engine.py (11 tests), fills_backtest.py execution model (tests), fees.py (spec worked examples), stats.py event bootstrap (tests), baselines.py B0 (calibrated-world test), **leakage test in CI**, data.py loader, experiments.py registry, run_backtest.py CLI with overrides.
 
 ## Next (in order)
 
-1. When pass 2 + catalog finish: run `scripts/build_features.py` (writes `data/features/asof=*.parquet`, ~90 Mondays).
-2. Phase 1 sanity checks + `reports/phase-1.md`.
-3. Phase 2 validation (50 wallets vs user_position.realizedPnl + Data API), replication check, `reports/phase-2.md`.
-4. Smoke backtest (`run_backtest.py --split smoke`), then staged Train search (§8.4: ≤300 configs, selection×N → signal params → exits), Validation shortlist ≤3, Holdout A ONCE. Gate G1.
+1. Features build finishes → spot-check a few asof dates (candidate counts, label mix, score distribution).
+2. `scripts/replication_check.py`, `scripts/phase2_report.py` → `reports/phase-2.md` + "Phase 2 complete" issue.
+3. Smoke backtest (`run_backtest.py --split smoke`), then staged Train search (§8.4: ≤300 configs, selection×N → signal params → exits), Validation shortlist ≤3, Holdout A ONCE. Gate G1.
 
 ## Open blockers
 
-- None hard. Watch disk (~28G free; pass-2 outputs est 10-15GB).
+- None hard. Disk ~23G free after deleting catalog parts.
 
 ## Standing constraints (never stale)
 
