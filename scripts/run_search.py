@@ -31,15 +31,19 @@ log = logging.getLogger("search")
 
 
 def stage1(cfg0: Config, split: str, t0: int, t1: int) -> None:
+    data = None
     for method, n in itertools.product(["skill", "naive_pnl"], [5, 10, 20, 40]):
         cfg = apply_overrides(cfg0, [f"selection.method={method}", f"selection.n_wallets={n}"])
+        data = None  # free the previous config's SimData before loading the next
         data = load_sim_data(cfg, t_start=t0, t_end=t1)
         run_experiment(cfg, data, split=split, t_start=t0, t_end=t1, label=f"s1-{method}-n{n}")
 
 
 def stage2(cfg0: Config, split: str, t0: int, t1: int, method: str, ns: list[int]) -> None:
+    data = None
     for n in ns:
         base = apply_overrides(cfg0, [f"selection.method={method}", f"selection.n_wallets={n}"])
+        data = None  # free the previous N's SimData before loading the next
         data = load_sim_data(base, t_start=t0, t_end=t1)
         grids: list[list[str]] = []
         # holdings family

@@ -22,13 +22,32 @@ from polycopy.wallets.select import select_wallets
 log = logging.getLogger(__name__)
 
 
+SIM_MARKET_COLS = (
+    "condition_id",
+    "event_id",
+    "yes_token_id",
+    "no_token_id",
+    "category_bucket",
+    "neg_risk",
+    "end_ts",
+    "resolved_ts",
+    "payout_yes",
+    "game_start_ts",
+)
+
+
 def load_markets_frame() -> pl.DataFrame:
-    gamma = pl.read_parquet(paths.MARKETS_PARQUET)
-    chain = pl.read_parquet(paths.DATA / "chain_condition_map.parquet").select(
+    """Sim-relevant catalog columns only: the full 5.6M-row catalog with its
+    question/slug/tag strings is several GB in memory and OOMs repeated loads."""
+    gamma = pl.scan_parquet(paths.MARKETS_PARQUET).select(SIM_MARKET_COLS)
+    chain = pl.scan_parquet(paths.DATA / "chain_condition_map.parquet").select(
         "condition_id", chain_payout=pl.col("payout_yes")
     )
-    return gamma.join(chain, on="condition_id", how="left").with_columns(
-        payout_yes=pl.coalesce(pl.col("payout_yes"), pl.col("chain_payout"))
+    return (
+        gamma.join(chain, on="condition_id", how="left")
+        .with_columns(payout_yes=pl.coalesce(pl.col("payout_yes"), pl.col("chain_payout")))
+        .drop("chain_payout")
+        .collect(engine="streaming")
     )
 
 
@@ -116,7 +135,16 @@ def load_sim_data(
     prices = (
         pl.scan_parquet(paths.PRICES_DIR / "*.parquet")
         .filter(pl.col("token_id").is_in(sorted(tokens)))
-        .collect()
+        .select(
+            "token_id",
+            "bucket_ts",
+            "taker_buy_vwap",
+            "taker_sell_vwap",
+            "taker_buy_usdc",
+            "volume_usdc",
+            "last_price",
+        )
+        .collect(engine="streaming")
         .sort("token_id", "bucket_ts")
     )
     tapes: dict[str, TokenTape] = {}
