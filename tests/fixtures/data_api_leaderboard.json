@@ -1,0 +1,30 @@
+{
+ "data": [
+  {
+   "rank": 1,
+   "user_id": "0x4f1d5ae26fc31472966e951af3183308736d8de2",
+   "pnl": 3520780.0764227253,
+   "volume": 3987899.7191254413,
+   "user_name": "e46m3",
+   "profile_image": "",
+   "x_username": "love_u_4ever",
+   "verified": false
+  },
+  {
+   "rank": 2,
+   "user_id": "0x2c335066fe58fe9237c3d3dc7b275c2a034a0563",
+   "pnl": 2849305.8171715126,
+   "volume": 232650251.47432452,
+   "user_name": "0x2c335066FE58fe9237c3d3Dc7b275C2a034a0563-1759935795465",
+   "profile_image": "",
+   "x_username": "",
+   "verified": false
+  }
+ ],
+ "pagination": {
+  "limit": 3,
+  "offset": 0,
+  "has_more": true,
+  "next_cursor": "eyJkYXRhIjp7InR5cGUiOiJsZWFkZXJib2FyZCIsInBhcmFtcyI6eyJsIjozLCJvIjozLCJzIjoiUE5MIiwidCI6Im1vbnRoIiwiYyI6Im92ZXJhbGwifX0sInNpZyI6IjI4NTEzNjEwYTcwN2EwYjE5NDZiNDhlNGRjZTk1OTFhIn0"
+ }
+}

@@ -1,0 +1,29 @@
+{
+ "cursor": "EhIKEAcmrt2vWbpwkrfxxui9nlgaDAjD9ePXBhDIlKLLAg",
+ "trades": [
+  {
+   "count_fp": "181.59",
+   "created_time": "2026-11-15T00:20:19.701957Z",
+   "is_block_trade": false,
+   "no_price_dollars": "0.6300",
+   "taker_book_side": "bid",
+   "taker_outcome_side": "yes",
+   "taker_side": "yes",
+   "ticker": "KXBTC15M-26NOV141930-30",
+   "trade_id": "0726aedd-af59-87ad-0052-e94e967ea105",
+   "yes_price_dollars": "0.3700"
+  },
+  {
+   "count_fp": "0.01",
+   "created_time": "2026-11-15T00:20:19.694717Z",
+   "is_block_trade": false,
+   "no_price_dollars": "0.5100",
+   "taker_book_side": "bid",
+   "taker_outcome_side": "yes",
+   "taker_side": "yes",
+   "ticker": "KXNCAAF1Q-26NOV14LOUUNC-LOU",
+   "trade_id": "0726aedd-af59-ba70-92b7-f1c6e8bd9e58",
+   "yes_price_dollars": "0.4900"
+  }
+ ]
+}

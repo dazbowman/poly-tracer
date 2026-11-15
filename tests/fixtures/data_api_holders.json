@@ -1,0 +1,72 @@
+{
+ "data": [
+  {
+   "token_id": "13299448170316439969785489335381672389153469536567072219213592806742203574779",
+   "holders": [
+    {
+     "proxy_wallet": "0x1000008dd9001b968442c1000017eae6e0da00ba",
+     "bio": "",
+     "token_id": "13299448170316439969785489335381672389153469536567072219213592806742203574779",
+     "pseudonym": "",
+     "amount": 520.14,
+     "display_username_public": false,
+     "outcome_index": 0,
+     "name": "",
+     "profile_image": "",
+     "profile_image_optimized": "",
+     "verified": false
+    },
+    {
+     "proxy_wallet": "0x7356f379690de962b6d5e9fe31d0893bb61c223d",
+     "bio": "",
+     "token_id": "13299448170316439969785489335381672389153469536567072219213592806742203574779",
+     "pseudonym": "",
+     "amount": 200.0,
+     "display_username_public": false,
+     "outcome_index": 0,
+     "name": "",
+     "profile_image": "",
+     "profile_image_optimized": "",
+     "verified": false
+    }
+   ]
+  },
+  {
+   "token_id": "77357144247895211186208392190025003897732014622832762283129370440127045770587",
+   "holders": [
+    {
+     "proxy_wallet": "0x869a748bcc95fe56b431f5d41567d06dbc760ac7",
+     "bio": "",
+     "token_id": "77357144247895211186208392190025003897732014622832762283129370440127045770587",
+     "pseudonym": "Sharp-Folk",
+     "amount": 720.14,
+     "display_username_public": true,
+     "outcome_index": 1,
+     "name": "dwdwdwdwwwdaa",
+     "profile_image": "",
+     "profile_image_optimized": "",
+     "verified": false
+    },
+    {
+     "proxy_wallet": "0x1ec9cf9578ce636ef6407f73c71e17545a3fe838",
+     "bio": "",
+     "token_id": "77357144247895211186208392190025003897732014622832762283129370440127045770587",
+     "pseudonym": "Rotten-Drizzle-Credential",
+     "amount": 5.0,
+     "display_username_public": true,
+     "outcome_index": 1,
+     "name": "jackreach",
+     "profile_image": "",
+     "profile_image_optimized": "",
+     "verified": false
+    }
+   ]
+  }
+ ],
+ "pagination": {
+  "limit": 2,
+  "offset": 0,
+  "has_more": true,
+  "next_cursor": "eyJkYXRhIjp7InR5cGUiOiJob2xkZXJzIiwicGFyYW1zIjp7ImwiOjIsIm8iOjJ9fSwic2lnIjoiMzRkMDFlYzU0ZjdlZmRhMjdmZTE4ZDZmNjZjZmU0OTAifQ"
+ }
+}

@@ -1,0 +1,149 @@
+{
+ "cursor": "CgsIwvXj1wYQmOTGMBIyS1hNVkVDUk9TU0NBVEVHT1JZLVMyMDI2WDVaSk1OQUxDR1FYNkVPVy1CTU1VMjdDSU4",
+ "markets": [
+  {
+   "can_close_early": true,
+   "close_time": "2026-11-17T03:30:00Z",
+   "created_time": "2026-11-15T00:20:18.102867Z",
+   "custom_strike": {
+    "Associated Events": "KXBRASILEIROTOTAL-26NOV14CHAVDG,KXLIGAMXTOTAL-26NOV14QUEMON,KXNBAGAME-26NOV14CHIMIN,KXNBAGAME-26NOV14DENNOP,KXUFCFIGHT-26NOV14GANHOK,KXUFCFIGHT-26NOV14HARNUN,KXURYPDGAME-26NOV14NACALB",
+    "Associated Market Sides": "no,no,yes,yes,yes,yes,yes",
+    "Associated Markets": "KXBRASILEIROTOTAL-26NOV14CHAVDG-5,KXLIGAMXTOTAL-26NOV14QUEMON-4,KXNBAGAME-26NOV14CHIMIN-MIN,KXNBAGAME-26NOV14DENNOP-DEN,KXUFCFIGHT-26NOV14GANHOK-GAN,KXUFCFIGHT-26NOV14HARNUN-NUN,KXURYPDGAME-26NOV14NACALB-NAC",
+    "Multivariate Event Ticker": "KXMVECROSSCATEGORY-S2026L5VKS5LMTDBNV6C6"
+   },
+   "event_ticker": "KXMVECROSSCATEGORY-S2026L5VKS5LMTDBNV6C6",
+   "exchange_index": 1,
+   "expected_expiration_time": "2026-11-15T09:30:00Z",
+   "expiration_time": "2026-11-17T03:30:00Z",
+   "expiration_value": "",
+   "is_provisional": true,
+   "last_price_dollars": "0.0000",
+   "latest_expiration_time": "2026-11-17T03:30:00Z",
+   "market_type": "binary",
+   "mve_collection_ticker": "KXMVECROSSCATEGORY-R",
+   "mve_selected_legs": [
+    {
+     "event_ticker": "KXBRASILEIROTOTAL-26NOV14CHAVDG",
+     "market_ticker": "KXBRASILEIROTOTAL-26NOV14CHAVDG-5",
+     "side": "no"
+    },
+    {
+     "event_ticker": "KXLIGAMXTOTAL-26NOV14QUEMON",
+     "market_ticker": "KXLIGAMXTOTAL-26NOV14QUEMON-4",
+     "side": "no"
+    }
+   ],
+   "no_ask_dollars": "1.0000",
+   "no_bid_dollars": "1.0000",
+   "no_sub_title": "no Over 4.5 goals scored,no Over 3.5 goals scored,yes Minnesota,yes Denver,yes Ciryl Gane,yes Amanda Nunes,yes Nacional",
+   "notional_value_dollars": "1.0000",
+   "open_interest_fp": "0.00",
+   "open_time": "2026-11-15T00:20:18Z",
+   "previous_price_dollars": "0.0000",
+   "previous_yes_ask_dollars": "0.0000",
+   "previous_yes_bid_dollars": "0.0000",
+   "price_level_structure": "center_deci_edge_centi_cent",
+   "price_ranges": [
+    {
+     "end": "0.0100",
+     "start": "0.0000",
+     "step": "0.0001"
+    },
+    {
+     "end": "0.9900",
+     "start": "0.0100",
+     "step": "0.0010"
+    }
+   ],
+   "result": "",
+   "rules_primary": "",
+   "rules_secondary": "Kalshi is not affiliated, associated, authorized, endorsed by, or in any way officially connected with the Governing League. All trademarks, logos, and brand names are the property of their respective owners.",
+   "settlement_bounds_type": "default",
+   "settlement_timer_seconds": 5,
+   "status": "active",
+   "strike_type": "custom",
+   "ticker": "KXMVECROSSCATEGORY-S2026L5VKS5LMTDBNV6C6-LTOFQ6PUV",
+   "title": "no Over 4.5 goals scored,no Over 3.5 goals scored,yes Minnesota,yes Denver,yes Ciryl Gane,yes Amanda Nunes,yes Nacional",
+   "updated_time": "2026-11-15T00:20:18.757046Z",
+   "volume_24h_fp": "0.00",
+   "volume_fp": "0.00",
+   "yes_ask_dollars": "0.0000",
+   "yes_ask_size_fp": "0.00",
+   "yes_bid_dollars": "0.0000",
+   "yes_bid_size_fp": "0.00",
+   "yes_sub_title": "no Over 4.5 goals scored,no Over 3.5 goals scored,yes Minnesota,yes Denver,yes Ciryl Gane,yes Amanda Nunes,yes Nacional"
+  },
+  {
+   "can_close_early": true,
+   "close_time": "2026-11-17T03:00:00Z",
+   "created_time": "2026-11-15T00:20:18.101823Z",
+   "custom_strike": {
+    "Associated Events": "KXNBAGAME-26NOV14BKNMEM,KXNBAGAME-26NOV14CHIMIN,KXNBAGAME-26NOV14DALCLE,KXNBAGAME-26NOV14DENNOP,KXNBAGAME-26NOV14DETMIA,KXNCAAFGAME-26NOV14AUBMSST,KXNCAAFGAME-26NOV14ETAMLAM,KXNCAAFGAME-26NOV14ILSTYSU,KXNCAAFGAME-26NOV14NICHIW,KXNCAAMBGAME-26NOV14BINGDUQ,KXNCAAMBGAME-26NOV14BRWNSIE,KXNCAAMBGAME-26NO\u2026",
+    "Associated Market Sides": "yes,yes,yes,yes,yes,yes,yes,yes,yes,yes,yes,yes,yes,yes,yes,yes,yes,yes,yes,yes,yes,yes,yes,yes,yes,yes,yes,yes,yes,yes,yes",
+    "Associated Markets": "KXNBAGAME-26NOV14BKNMEM-MEM,KXNBAGAME-26NOV14CHIMIN-MIN,KXNBAGAME-26NOV14DALCLE-DAL,KXNBAGAME-26NOV14DENNOP-DEN,KXNBAGAME-26NOV14DETMIA-DET,KXNCAAFGAME-26NOV14AUBMSST-AUB,KXNCAAFGAME-26NOV14ETAMLAM-LAM,KXNCAAFGAME-26NOV14ILSTYSU-YSU,KXNCAAFGAME-26NOV14NICHIW-IW,KXNCAAMBGAME-26NOV14BINGDUQ-DUQ,KXNCAA\u2026",
+    "Multivariate Event Ticker": "KXMVECROSSCATEGORY-S2026X5ZJMNALCGQX6EOW"
+   },
+   "event_ticker": "KXMVECROSSCATEGORY-S2026X5ZJMNALCGQX6EOW",
+   "exchange_index": 1,
+   "expected_expiration_time": "2026-11-15T09:00:00Z",
+   "expiration_time": "2026-11-17T03:00:00Z",
+   "expiration_value": "",
+   "is_provisional": true,
+   "last_price_dollars": "0.0000",
+   "latest_expiration_time": "2026-11-17T03:00:00Z",
+   "market_type": "binary",
+   "mve_collection_ticker": "KXMVECROSSCATEGORY-R",
+   "mve_selected_legs": [
+    {
+     "event_ticker": "KXNBAGAME-26NOV14BKNMEM",
+     "market_ticker": "KXNBAGAME-26NOV14BKNMEM-MEM",
+     "side": "yes"
+    },
+    {
+     "event_ticker": "KXNBAGAME-26NOV14CHIMIN",
+     "market_ticker": "KXNBAGAME-26NOV14CHIMIN-MIN",
+     "side": "yes"
+    }
+   ],
+   "no_ask_dollars": "1.0000",
+   "no_bid_dollars": "1.0000",
+   "no_sub_title": "yes Memphis,yes Minnesota,yes Dallas,yes Denver,yes Detroit,yes Auburn,yes Lamar,yes Youngstown St.,yes Incarnate Word,yes Duquesne,yes Siena,yes Cincinnati,yes Providence,yes IU Indy,yes Lipscomb,yes Le Moyne,yes Fairfield,yes Little Rock,yes Wichita St.,yes Portland St.,yes Villanova,yes UAB,yes F\u2026",
+   "notional_value_dollars": "1.0000",
+   "open_interest_fp": "0.00",
+   "open_time": "2026-11-15T00:20:18Z",
+   "previous_price_dollars": "0.0000",
+   "previous_yes_ask_dollars": "0.0000",
+   "previous_yes_bid_dollars": "0.0000",
+   "price_level_structure": "center_deci_edge_centi_cent",
+   "price_ranges": [
+    {
+     "end": "0.0100",
+     "start": "0.0000",
+     "step": "0.0001"
+    },
+    {
+     "end": "0.9900",
+     "start": "0.0100",
+     "step": "0.0010"
+    }
+   ],
+   "result": "",
+   "rules_primary": "",
+   "rules_secondary": "Kalshi is not affiliated, associated, authorized, endorsed by, or in any way officially connected with the Governing League. All trademarks, logos, and brand names are the property of their respective owners.",
+   "settlement_bounds_type": "default",
+   "settlement_timer_seconds": 5,
+   "status": "active",
+   "strike_type": "custom",
+   "ticker": "KXMVECROSSCATEGORY-S2026X5ZJMNALCGQX6EOW-BMMU27CIN",
+   "title": "yes Memphis,yes Minnesota,yes Dallas,yes Denver,yes Detroit,yes Auburn,yes Lamar,yes Youngstown St.,yes Incarnate Word,yes Duquesne,yes Siena,yes Cincinnati,yes Providence,yes IU Indy,yes Lipscomb,yes Le Moyne,yes Fairfield,yes Little Rock,yes Wichita St.,yes Portland St.,yes Villanova,yes UAB,yes F\u2026",
+   "updated_time": "2026-11-15T00:20:18.757046Z",
+   "volume_24h_fp": "0.00",
+   "volume_fp": "0.00",
+   "yes_ask_dollars": "0.0000",
+   "yes_ask_size_fp": "0.00",
+   "yes_bid_dollars": "0.0000",
+   "yes_bid_size_fp": "0.00",
+   "yes_sub_title": "yes Memphis,yes Minnesota,yes Dallas,yes Denver,yes Detroit,yes Auburn,yes Lamar,yes Youngstown St.,yes Incarnate Word,yes Duquesne,yes Siena,yes Cincinnati,yes Providence,yes IU Indy,yes Lipscomb,yes Le Moyne,yes Fairfield,yes Little Rock,yes Wichita St.,yes Portland St.,yes Villanova,yes UAB,yes F\u2026"
+  }
+ ]
+}

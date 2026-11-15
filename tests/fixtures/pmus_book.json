@@ -1,0 +1,96 @@
+{
+ "marketData": {
+  "marketSlug": "tec-mls-winner-2026-11-07-vwh",
+  "bids": [
+   {
+    "px": {
+     "value": "0.1600",
+     "currency": "USD"
+    },
+    "qty": "5.0000"
+   },
+   {
+    "px": {
+     "value": "0.1590",
+     "currency": "USD"
+    },
+    "qty": "327.0000"
+   }
+  ],
+  "offers": [
+   {
+    "px": {
+     "value": "0.1650",
+     "currency": "USD"
+    },
+    "qty": "25.0000"
+   },
+   {
+    "px": {
+     "value": "0.1670",
+     "currency": "USD"
+    },
+    "qty": "189.0000"
+   }
+  ],
+  "state": "MARKET_STATE_OPEN",
+  "stats": {
+   "openPx": {
+    "value": "0.2150",
+    "currency": "USD"
+   },
+   "closePx": {
+    "value": "0.2240",
+    "currency": "USD"
+   },
+   "lowPx": {
+    "value": "0.0170",
+    "currency": "USD"
+   },
+   "highPx": {
+    "value": "0.9280",
+    "currency": "USD"
+   },
+   "lastTradePx": {
+    "value": "0.1600",
+    "currency": "USD"
+   },
+   "settlementPx": {
+    "value": "0.2240",
+    "currency": "USD"
+   },
+   "sharesTraded": "3847625.0000",
+   "notionalTraded": {
+    "value": "868015.8990",
+    "currency": "USD"
+   },
+   "lastTradeQty": "20.0000",
+   "openInterest": "121155.0000",
+   "openSetTime": "2026-09-12T21:21:23.306824892Z",
+   "closeSetTime": "2026-09-12T21:00:21.935821738Z",
+   "highSetTime": "2026-10-11T03:08:46.052722074Z",
+   "lowSetTime": "2026-10-31T16:58:18.606340460Z",
+   "lastTradeSetTime": "2026-11-14T20:15:27.155539Z",
+   "settlementSetTime": "2026-09-12T21:00:21.935860189Z",
+   "openInterestSetTime": "2026-11-13T19:59:50.173352517Z",
+   "notionalSetTime": "2026-11-14T20:15:27.155539Z",
+   "settlementPriceCalculationMethod": "SETTLEMENT_PRICE_CALCULATION_METHOD_EVENT_TIER_2",
+   "currentPx": {
+    "value": "0.1625",
+    "currency": "USD"
+   },
+   "lastPriceSample": {
+    "longPx": {
+     "value": "0.1600",
+     "currency": "USD"
+    },
+    "shortPx": {
+     "value": "0.84",
+     "currency": "USD"
+    },
+    "ts": "2026-11-15T00:19:37.051651131Z"
+   }
+  },
+  "transactTime": "2026-11-15T00:19:37.051651131Z"
+ }
+}

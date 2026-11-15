@@ -1,0 +1,52 @@
+{
+ "data": [
+  {
+   "proxy_wallet": "0x4f1d5ae26fc31472966e951af3183308736d8de2",
+   "side": "BUY",
+   "token_id": "13299448170316439969785489335381672389153469536567072219213592806742203574779",
+   "condition_id": "0x77714728fb7f37e32a0caff70946fe3b68d56a44647362cf779d95665a7a483f",
+   "size": 520.14,
+   "price": 0.01,
+   "timestamp": 1794701636,
+   "title": "Jerami Grant: Points O/U 4.5",
+   "slug": "nba-bkn-mem-2026-11-14-points-jerami-grant-4pt5",
+   "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/super+cool+basketball+in+red+and+blue+wow.png",
+   "event_slug": "nba-bkn-mem-2026-11-14",
+   "outcome": "Yes",
+   "outcome_index": 0,
+   "name": "e46m3",
+   "pseudonym": "Grown-Fence",
+   "bio": "",
+   "profile_image": "",
+   "profile_image_optimized": "",
+   "transaction_hash": "0x50491bb0ec42e7e94cd78f9c177b660597da3ea0b8c8731751392778169b1658"
+  },
+  {
+   "proxy_wallet": "0x4f1d5ae26fc31472966e951af3183308736d8de2",
+   "side": "BUY",
+   "token_id": "72768297879485659001306823213628575574560646456931538281860314435008677393485",
+   "condition_id": "0xff048fefa759c874321e6afa40eb99f76c1f0718350549913211a20d604344d7",
+   "size": 35.87,
+   "price": 0.58442431,
+   "timestamp": 1794701206,
+   "title": "Michael Porter Jr.: Points O/U 14.5",
+   "slug": "nba-bkn-mem-2026-11-14-points-michael-porter-jr-14pt5",
+   "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/super+cool+basketball+in+red+and+blue+wow.png",
+   "event_slug": "nba-bkn-mem-2026-11-14",
+   "outcome": "Yes",
+   "outcome_index": 0,
+   "name": "e46m3",
+   "pseudonym": "Grown-Fence",
+   "bio": "",
+   "profile_image": "",
+   "profile_image_optimized": "",
+   "transaction_hash": "0xa3202c5b418e97f63bba578d483d51853ab35ce9dc46bbb62754744d5a7a8fca"
+  }
+ ],
+ "pagination": {
+  "limit": 2,
+  "offset": 0,
+  "has_more": true,
+  "next_cursor": "eyJkYXRhIjp7InR5cGUiOiJ0cmFkZXMiLCJwYXJhbXMiOnsibCI6MiwidHMiOjE3OTQ3MDEyMDYsInNxIjoiOTczMzA0OTEwMDA0MjA0NTEwIiwiZCI6Mn19LCJzaWciOiJiNjBhMThjYTNhY2YxYTc2YWRmZDM1MmRlM2Q2ZTUzNSJ9"
+ }
+}

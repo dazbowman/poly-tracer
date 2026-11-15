@@ -1,0 +1,56 @@
+{
+ "data": [
+  {
+   "proxy_wallet": "0x4f1d5ae26fc31472966e951af3183308736d8de2",
+   "timestamp": 1794701831,
+   "condition_id": "0x4e8bb645ac8b6742a6a531ddc9eaaff0cbb759ec4925cc34345dc667da3bad3c",
+   "type": "REDEEM",
+   "size": 24.666667,
+   "usdc_size": 24.666667,
+   "transaction_hash": "0x41c0337c037521c9d05bb42860840a81038f9025dff8d05751998edf653e0806",
+   "price": 0.0,
+   "token_id": "8341808541951546015796130575887615441878398028445648203738384665334091998175",
+   "side": "",
+   "outcome_index": 0,
+   "title": "CR Brasil vs. Cear\u00e1 SC: O/U 0.5",
+   "slug": "bra2-crb-csc-2026-11-14-total-0pt5",
+   "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/soccer-leagues/bra2.png",
+   "event_slug": "bra2-crb-csc-2026-11-14-more-markets",
+   "outcome": "Over",
+   "name": "e46m3",
+   "pseudonym": "Grown-Fence",
+   "bio": "",
+   "profile_image": "",
+   "profile_image_optimized": ""
+  },
+  {
+   "proxy_wallet": "0x4f1d5ae26fc31472966e951af3183308736d8de2",
+   "timestamp": 1794701698,
+   "condition_id": "0x77714728fb7f37e32a0caff70946fe3b68d56a44647362cf779d95665a7a483f",
+   "type": "MIGRATION",
+   "size": 520.14,
+   "usdc_size": 0.0,
+   "transaction_hash": "0x0eec38a6c560d0621d22342ff14bf4fd4f36fe5691044532fe00b5d196b85d0b",
+   "price": 0.0,
+   "token_id": "637537880248990332217589762213317480997987222116357517737316029553501536256",
+   "side": "",
+   "outcome_index": 0,
+   "title": "Jerami Grant: Points O/U 4.5",
+   "slug": "nba-bkn-mem-2026-11-14-points-jerami-grant-4pt5",
+   "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/super+cool+basketball+in+red+and+blue+wow.png",
+   "event_slug": "",
+   "outcome": "Yes",
+   "name": "e46m3",
+   "pseudonym": "Grown-Fence",
+   "bio": "",
+   "profile_image": "",
+   "profile_image_optimized": ""
+  }
+ ],
+ "pagination": {
+  "limit": 3,
+  "offset": 0,
+  "has_more": true,
+  "next_cursor": "eyJkYXRhIjp7InR5cGUiOiJhY3Rpdml0eSIsInBhcmFtcyI6eyJsIjozLCJ0cyI6MTc5NDcwMTYzNiwic3EiOiI5NzMzMDc3ODAwMDMxMDM2MjAiLCJkIjozfX0sInNpZyI6IjM3ZDZlOTQwYTU5YjA4YWYzNmRmZjU2NjUzYzIxY2M2In0"
+ }
+}
