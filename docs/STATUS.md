@@ -8,7 +8,7 @@
 
 - **Phase 0 (bootstrap): DONE.** 28/28 endpoint probes pass, fixtures committed, DATA_NOTES filled, CI green on `claude/dreamy-gates-8wlal5`.
 - **Phase 1 (data layer): ~70%, long jobs running.**
-  - [x] Gamma catalog crawler (keyset, `closed` both ways). **Full crawl RUNNING in background** (closed-market ids reach ~7M; crawl takes hours). Partial `data/markets.parquet` (56KB, 3-page smoke) will be overwritten when it completes — check `ps aux | grep build_catalog`; relaunch `uv run python scripts/build_catalog.py` if dead (page cache makes re-runs cheap).
+  - [⏳] Gamma catalog crawl RUNNING (relaunched ~01:55 UTC, detached + checkpointed after the first 2h attempt was killed by a runner limit with all progress in memory). Parts land in `data/catalog_parts/` every 50k markets; `uv run python scripts/build_catalog.py` resumes from the checkpoint if it dies. Watch: `scratchpad/catalog2.log`.
   - [x] `chain_condition_map.parquet` BUILT: 1.117M conditions, 992k resolved, token order verified == Gamma. Pass 2 and payouts do NOT wait on the Gamma crawl; the crawl supplies resolved_ts/categories/events for features and backtest.
   - [x] Universe pass 1 DONE: 8.24M wallet-months, 2.63M wallets; loose candidates 532k (96.6% vol); extraction set per d-013: 164,576 wallets (33% vol, 313M legs) in `data/universe/candidates_extract.parquet`.
   - [x] Pass 2 (fills_norm + prices_5m) DONE and REBUILT after the d-014 event-semantics fix: 170.8M owner legs (2.9G) + aggressor tape (1.6G), 56/56 slices.
