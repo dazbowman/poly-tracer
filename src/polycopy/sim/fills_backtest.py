@@ -50,6 +50,12 @@ class TokenTape:
         s = self.window(ts, ts + minutes * 60)
         return s.stop > s.start
 
+    @property
+    def has_volume_data(self) -> bool:
+        """False for price-only tapes (Holdout B API prices, d-012): the
+        participation/slippage model needs real taker volume."""
+        return bool(self.volume_usdc.size and float(np.nanmax(self.volume_usdc)) > 0)
+
 
 @dataclass
 class FillResult:
@@ -91,9 +97,12 @@ def simulate_buy(
             return None
         base = last + thin_bump
         quality = "last_plus"
-    trail = tape.trailing_volume(t_exec, 1.0)
-    participation = notional_usd / trail if trail > 0 else 10.0
-    slippage = 0.005 * participation * 10.0
+    if tape.has_volume_data:
+        trail = tape.trailing_volume(t_exec, 1.0)
+        participation = notional_usd / trail if trail > 0 else 10.0
+        slippage = 0.005 * participation * 10.0
+    else:  # price-only tape: thin_bump+penalty stand in for the slippage model
+        slippage = 0.0
     price = base + penalty + slippage
     if price_cap is not None:
         price = min(price, price_cap)
@@ -131,8 +140,11 @@ def simulate_sell(
             return None
         base = last - thin_bump
         quality = "last_plus"
-    trail = tape.trailing_volume(t_exec, 1.0)
-    participation = notional_usd / trail if trail > 0 else 10.0
-    slippage = 0.005 * participation * 10.0
+    if tape.has_volume_data:
+        trail = tape.trailing_volume(t_exec, 1.0)
+        participation = notional_usd / trail if trail > 0 else 10.0
+        slippage = 0.005 * participation * 10.0
+    else:
+        slippage = 0.0
     price = float(np.clip(base - penalty - slippage, 0.001, 0.999))
     return FillResult(price=price, fill_quality=quality, slippage=slippage, base_price=base)

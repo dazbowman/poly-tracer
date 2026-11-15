@@ -79,6 +79,10 @@ def select_wallets(
     method = method or cfg.selection.method
     n = n_wallets or cfg.selection.n_wallets
     eligible = features.filter(~pl.col("label").is_in(EXCLUDED_LABELS))
+    if cfg.selection.min_median_market_cost > 0:
+        eligible = eligible.filter(
+            pl.col("median_market_cost") >= cfg.selection.min_median_market_cost
+        )
     if method == "skill":
         ranked = (
             eligible.filter(pl.col("skilled") & (pl.col("score") > 0))

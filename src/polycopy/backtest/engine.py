@@ -304,7 +304,7 @@ class Engine:
         # keep ~3% headroom for the taker fee so cash never goes negative
         notional = min(notional, event_room, deploy_room, self.cash * 0.97)
         tape = self.data.tapes.get(m.yes_token if direction > 0 else m.no_token)
-        if tape is not None:
+        if tape is not None and tape.has_volume_data:
             trail = tape.trailing_volume(tick, 1.0)
             notional = min(notional, sz.max_book_participation * trail)
         if notional < sz.min_order_usd:

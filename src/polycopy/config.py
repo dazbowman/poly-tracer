@@ -35,6 +35,10 @@ class SelectionCfg(_Frozen):
     shrink_n0: int = 30
     per_category: bool = False
     min_category_markets: int = 15
+    # d-020 copyability gate: a wallet's lookback median per-market buy cost
+    # must reach this for it to be selectable (0 = off). Dust-bet longshot
+    # farmers score high but cannot form $-level consensus.
+    min_median_market_cost: float = 0.0
 
 
 class FiltersCfg(_Frozen):
