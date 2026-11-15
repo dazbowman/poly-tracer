@@ -22,16 +22,37 @@ log = logging.getLogger("sanity")
 
 
 def check_mapping_coverage() -> None:
-    legs = pl.scan_parquet(paths.FILLS_DIR / "*.parquet").select(pl.len()).collect().item()
-    wm = pl.read_parquet(paths.UNIVERSE_DIR / "wallet_month.parquet")
-    ex = pl.read_parquet(paths.UNIVERSE_DIR / "candidates_extract.parquet").select("wallet")
-    expected = (
-        wm.join(ex, on="wallet", how="inner").filter(pl.col("month") <= "2026-04")["n_fills"].sum()
-    )
-    print(
-        f"[1] mapping coverage: fills_norm rows={legs:,} expected legs={expected:,} "
-        f"-> {100 * legs / expected:.2f}% (SPEC wants >=99%)"
-    )
+    """Direct check on three sample months: candidate owner events on the chain
+    vs rows that made it into fills_norm (the token-map join drops unmapped)."""
+    import duckdb
+
+    from polycopy.history.fills import _EXCH_SQL
+
+    con = duckdb.connect()
+    cand = str(paths.UNIVERSE_DIR / "candidates_extract.parquet")
+    for ym, remote in [
+        ("2024-10", "year=2024/month=10"),
+        ("2025-06", "year=2025/month=06"),
+        ("2026-03", "year=2026/month=03"),
+    ]:
+        expected = con.sql(
+            f"""
+            SELECT count(*) FROM '{paths.HF_BASE}/order_filled/{remote}.parquet'
+            WHERE (makerAssetId='0' OR takerAssetId='0')
+              AND lower(maker) NOT IN {_EXCH_SQL}
+              AND lower(maker) IN (SELECT wallet FROM read_parquet('{cand}'))
+            """
+        ).fetchall()[0][0]
+        got = (
+            pl.scan_parquet(paths.FILLS_DIR / f"fills_{ym}_s*.parquet")
+            .select(pl.len())
+            .collect()
+            .item()
+        )
+        print(
+            f"[1] mapping coverage {ym}: fills_norm={got:,} owner-events={expected:,} "
+            f"-> {100 * got / expected:.2f}% (SPEC wants >=99%)"
+        )
 
 
 def check_monthly_volumes() -> None:
@@ -78,10 +99,12 @@ def check_api_crosscheck(n: int = 20) -> None:
             cache_ttl=7 * 86400,
         )
         for tr in body.get("data", []):
+            # API size is NET of the taker fee charged in the received asset
+            # (up to ~5% on fee-enabled markets); ours is gross matched
             if (
                 tr["token_id"] == row["token_id"]
-                and abs(tr["size"] - row["shares"]) < 0.01 + 0.001 * row["shares"]
                 and tr["timestamp"] == row["ts"]
+                and abs(tr["size"] - row["shares"]) <= 0.01 + 0.06 * row["shares"]
             ):
                 matched += 1
                 break

@@ -79,3 +79,8 @@ One entry per non-obvious choice: date, decision, alternatives, reason. Newest l
 - Decision: fills_norm takes exactly one leg per OrderFilled event (owner = `maker` field; `bought` iff makerAssetId='0'; role 'taker' iff the event's taker field is an exchange contract). prices_5m aggregates aggressor events only (one per match, on the aggressor's token — the /v2/trades-equivalent tape). tx hash and counterparty columns dropped for size; API cross-checks match on (wallet, ts, token, size).
 - Found by: sanity check 3 — 0/20 API matches exposed that naive maker+taker leg expansion double-counts aggressors, books phantom complement-token trades on mint/merge matches, and treats the exchange contracts as wallets.
 - Impact: pass-1 wallet-month volumes are inflated for takers (≤2x) and include the exchange contracts; thresholds there are generous and the extraction set is a superset, so no pass-1 rebuild — features compute exact numbers from the corrected fills_norm. Pass-2 outputs fully rebuilt.
+
+**d-015 · 2026-11-15 · Gross fill sizes kept; token-side taker fees not netted**
+
+- Decision: fills_norm stores gross matched size (price = gross price, which is the correct tape price). On fee-enabled markets (mostly 2026 sports/crypto) the Data API shows taker sizes net of a token-side fee (observed 1–5%); the chain `fee` column's units did not decode cleanly against observed deductions and a 27GB fee_refunded table further muddies net amounts.
+- Impact: leader-wallet share balances slightly overstated on fee-era buys; bot economics unaffected (we model PM-US fees explicitly). The user_position validation measures the aggregate effect; revisit with exact fee decoding only if it breaches the 5% target. API cross-check tolerance widened to 6% accordingly.
