@@ -18,13 +18,12 @@ import polars as pl
 
 from polycopy import paths
 from polycopy.config import Config
-from polycopy.wallets.pnl import market_returns
 from polycopy.wallets.skill import benjamini_hochberg, sign_flip_pvalue
 
 log = logging.getLogger("replication")
 
 
-def half_skill(rets: pl.DataFrame, cfg: Config, min_markets: int = 15) -> pl.DataFrame:
+def half_skill(rets: pl.LazyFrame, cfg: Config, min_markets: int = 15) -> pl.DataFrame:
     grouped = (
         rets.group_by("wallet")
         .agg(
@@ -33,6 +32,7 @@ def half_skill(rets: pl.DataFrame, cfg: Config, min_markets: int = 15) -> pl.Dat
             rs=pl.col("r").sort_by(pl.col("condition_id")),
         )
         .filter(pl.col("n") >= min_markets)
+        .collect(engine="streaming")
     )
     pvals = []
     for wallet, costs, rs in zip(grouped["wallet"], grouped["costs"], grouped["rs"], strict=True):
@@ -52,18 +52,15 @@ def main() -> int:
     cfg = Config.load(paths.REPO / "configs" / "default.yaml")
     asof = int(datetime.strptime(args.asof, "%Y-%m-%d").replace(tzinfo=UTC).timestamp())
 
-    gamma = pl.scan_parquet(paths.MARKETS_PARQUET)
-    chain = pl.scan_parquet(paths.DATA / "chain_condition_map.parquet").select(
-        "condition_id", chain_payout=pl.col("payout_yes")
+    # precomputed market returns (build_features.py); rows are as-of independent
+    rets = (
+        pl.scan_parquet(paths.DATA / "market_returns" / "bucket_*.parquet")
+        .filter(pl.col("resolved_s") < asof)
+        .select("wallet", "condition_id", "buys_usdc", "r", "event_id")
+        .with_columns(half=pl.col("event_id").hash(seed=7) % 2)
     )
-    markets = gamma.join(chain, on="condition_id", how="left").with_columns(
-        payout_yes=pl.coalesce(pl.col("payout_yes"), pl.col("chain_payout"))
-    )
-    fills = pl.scan_parquet(paths.FILLS_DIR / "*.parquet")
-    rets = market_returns(fills, markets, asof_ts=asof).collect()
-    log.info("market returns: %d (wallet, market) rows", rets.height)
+    log.info("market returns: %d (wallet, market) rows", rets.select(pl.len()).collect().item())
 
-    rets = rets.with_columns(half=(pl.col("event_id").hash(seed=7) % 2).alias("half"))
     a = half_skill(rets.filter(pl.col("half") == 0), cfg)
     b = half_skill(rets.filter(pl.col("half") == 1), cfg)
     j = a.join(b, on="wallet", suffix="_b")
