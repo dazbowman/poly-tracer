@@ -57,6 +57,42 @@ class GammaClient:
             if not cursor or not markets or (max_pages and pages >= max_pages):
                 return
 
+    def markets_keyset_resumable(
+        self,
+        *,
+        closed: bool,
+        end_date_min: str | None = None,
+        after_cursor: str | None = None,
+        include_tag: bool = True,
+        limit: int = 100,
+        max_pages: int | None = None,
+    ) -> Iterator[tuple[list[dict[str, Any]], str | None]]:
+        """Like markets_keyset but yields (page, next_cursor) and can start from
+        a saved cursor, so a killed crawl resumes from its last checkpoint."""
+        params: dict[str, Any] = {
+            "limit": limit,
+            "order": "id",
+            "ascending": "true",
+            "include_tag": str(include_tag).lower(),
+            "closed": str(closed).lower(),
+        }
+        if end_date_min:
+            params["end_date_min"] = end_date_min
+        cursor = after_cursor
+        pages = 0
+        while True:
+            q = dict(params)
+            if cursor:
+                q["after_cursor"] = cursor
+            body = self.http.get("/markets/keyset", q)
+            markets = body.get("markets", [])
+            cursor = body.get("next_cursor")
+            if markets:
+                yield markets, cursor
+            pages += 1
+            if not cursor or not markets or (max_pages and pages >= max_pages):
+                return
+
     def market_by_condition(self, condition_ids: list[str]) -> list[dict[str, Any]]:
         return self.http.get(
             "/markets", {"condition_ids": condition_ids, "limit": len(condition_ids)}
