@@ -72,13 +72,16 @@ class DataApiClient:
         return rows
 
     def prices_history(
-        self, token_id: str, *, start: int, end: int, bucket_seconds: int = 300
+        self, token_id: str, *, start: int, end: int, bucket_seconds: int | None = 300
     ) -> list[dict]:
+        """bucket_seconds=None omits the param: the API then serves its native
+        stored resolution (older markets keep only coarse buckets and return an
+        EMPTY series — not an error — when a finer bucket_seconds is pinned)."""
+        params: dict[str, Any] = {"token_id": token_id, "start": start, "end": end}
+        if bucket_seconds is not None:
+            params["bucket_seconds"] = bucket_seconds
         out: list[dict] = []
-        for page in self._paged(
-            "/v2/prices-history",
-            {"token_id": token_id, "start": start, "end": end, "bucket_seconds": bucket_seconds},
-        ):
+        for page in self._paged("/v2/prices-history", params):
             out.extend(page)
         return out
 

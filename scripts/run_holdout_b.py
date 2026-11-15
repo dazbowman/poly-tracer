@@ -227,20 +227,39 @@ def step_prices(cfg: Config) -> None:
     api = DataApiClient(cache_dir=paths.CACHE / "data_api")
     done_f = out / "done_tokens.txt"
     done = set(done_f.read_text().split()) if done_f.exists() else set()
+    parts0 = list(out.glob("part_*.parquet"))
+    if done and parts0:
+        # d-021: tokens marked done with zero rows predate the API's 5-min
+        # retention; re-visit them so the native-resolution fallback runs
+        # (their 300s chunk requests replay from the disk cache).
+        have = set(
+            pl.scan_parquet(parts0)
+            .select("token_id")
+            .unique()
+            .collect(engine="streaming")["token_id"]
+            .to_list()
+        )
+        rowless = done - have
+        if rowless:
+            done -= rowless
+            log.info("re-visiting %d rowless tokens (native-resolution fallback)", len(rowless))
     rows: list[dict] = []
-    part = len(list(out.glob("part_*.parquet")))
+    part = len(parts0)
     n_fail = 0
     t0 = time.time()
     for i, (tok, c0, c1) in enumerate(jobs, 1):
         if tok not in done:
             try:
                 got: list[dict] = []
-                s = c0
-                while s < c1:
-                    e = min(s + CHUNK_DAYS * DAY, c1)
-                    hist = api.prices_history(tok, start=s, end=e, bucket_seconds=300)
-                    got.extend({"token_id": tok, **r} for r in hist)
-                    s = e
+                for bucket in (300, None):  # None: API-native resolution (d-021)
+                    s = c0
+                    while s < c1:
+                        e = min(s + CHUNK_DAYS * DAY, c1)
+                        hist = api.prices_history(tok, start=s, end=e, bucket_seconds=bucket)
+                        got.extend({"token_id": tok, **r} for r in hist)
+                        s = e
+                    if got:
+                        break
                 rows.extend(got)
                 done.add(tok)  # failures stay un-done -> retried on the next run
             except Exception as e:
@@ -297,17 +316,21 @@ def step_run(cfg: Config) -> None:
         )
     log.info("markets: %d", len(markets))
 
-    # price-only tapes -> §7.7 thin-fallback execution (taker fields zeroed)
+    # price-only tapes -> §7.7 thin-fallback execution (taker fields zeroed).
+    # bucket_ts = bucket END (d-021): a bucket's price becomes visible only
+    # once the bucket closes, so coarse native-resolution rows cannot leak
+    # post-decision trades. Duplicate (token, end) keeps the finest bucket.
     pr = (
         pl.scan_parquet(HB / "prices" / "part_*.parquet")
         .with_columns(
-            bucket_ts=pl.col("timestamp").cast(pl.Int64),
+            bucket_ts=(pl.col("timestamp") + pl.col("resolution_seconds")).cast(pl.Int64),
             last_price=pl.col("price").cast(pl.Float64),
         )
-        .select("token_id", "bucket_ts", "last_price")
-        .unique(subset=["token_id", "bucket_ts"], keep="first")
+        .select("token_id", "bucket_ts", "last_price", "resolution_seconds")
         .collect(engine="streaming")
-        .sort("token_id", "bucket_ts")
+        .sort("token_id", "bucket_ts", "resolution_seconds")
+        .unique(subset=["token_id", "bucket_ts"], keep="first", maintain_order=True)
+        .select("token_id", "bucket_ts", "last_price")
     )
     import numpy as np
 
