@@ -64,12 +64,19 @@ def activity_features(fills_lb: pl.LazyFrame, markets: pl.LazyFrame) -> pl.LazyF
             )
         )
     )
-    # median holding span per condition (first to last touch), hours
+    # median holding span per condition (first to last touch), hours; and the
+    # median per-market buy cost in the window (conviction-ratio denominator, §7.4 S1)
     hold = (
         fills_lb.group_by("wallet", "condition_id")
-        .agg(span_h=(pl.col("ts").max() - pl.col("ts").min()) / 3600.0)
+        .agg(
+            span_h=(pl.col("ts").max() - pl.col("ts").min()) / 3600.0,
+            mkt_cost=pl.col("usdc").filter(pl.col("bought")).sum(),
+        )
         .group_by("wallet")
-        .agg(median_hold_hours=pl.col("span_h").median())
+        .agg(
+            median_hold_hours=pl.col("span_h").median(),
+            median_market_cost=pl.col("mkt_cost").drop_nulls().median(),
+        )
     )
     return (
         base.join(mix, on="wallet", how="left")
