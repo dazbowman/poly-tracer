@@ -47,7 +47,10 @@ SELECT wallet,
        CAST(sum(usdc_raw) / 1e6 AS DOUBLE) AS volume_usdc,
        CAST(coalesce(sum(usdc_raw) FILTER (is_maker), 0) / 1e6 AS DOUBLE) AS maker_volume_usdc,
        count(*)::BIGINT AS n_fills,
-       count(DISTINCT token)::BIGINT AS n_tokens,
+       -- distinct over a 64-bit hash: the 78-char token strings make the exact
+       -- distinct-state spill tens of GB on 2026 months (collisions irrelevant
+       -- for thresholding)
+       count(DISTINCT hash(token))::BIGINT AS n_tokens,
        min(ts) AS first_ts,
        max(ts) AS last_ts
 FROM legs
