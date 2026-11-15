@@ -89,7 +89,15 @@ def run_experiment(
     resolved = (
         rt.filter(pl.col("net_pnl").is_not_null())
         if rt.height
-        else pl.DataFrame(schema={"net_pnl": pl.Float64, "cost": pl.Float64, "event_id": pl.Utf8})
+        else pl.DataFrame(
+            schema={
+                "net_pnl": pl.Float64,
+                "cost": pl.Float64,
+                "event_id": pl.Utf8,
+                "payout_token": pl.Float64,
+                "entry_price": pl.Float64,
+            }
+        )
     )
     boot = event_bootstrap_roi(
         resolved,
