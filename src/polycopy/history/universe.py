@@ -105,7 +105,9 @@ def ts_slices(remote_file: str, n_slices: int) -> list[tuple[str, str]]:
     month = int(parts[-1].removesuffix(".parquet").split("=")[1])
     t0 = int(datetime(year, month, 1, tzinfo=UTC).timestamp())
     t1 = int(datetime(year + (month == 12), month % 12 + 1, 1, tzinfo=UTC).timestamp())
-    edges = [t0 + (t1 - t0) * i // n_slices for i in range(n_slices)] + [t1]
+    # interior edges aligned to 300s so every 5-minute price bucket falls
+    # wholly inside one slice (slice outputs then just concatenate)
+    edges = [(t0 + (t1 - t0) * i // n_slices) // 300 * 300 for i in range(n_slices)] + [t1]
     # widen the outermost bounds: chain ts can straggle outside the calendar month
     bounds = [str(e) for e in edges]
     bounds[0] = "0000000000"
@@ -194,4 +196,36 @@ def derive_candidates(
             & (pl.col("total_fills") >= min_total_fills)
         )
         .sort("total_volume_usdc", descending=True)
+    )
+
+
+def derive_extract_set(
+    wallet_month: pl.DataFrame,
+    *,
+    min_volume_usd: float = 25_000,
+    min_tokens: int = 30,
+    min_fills: int = 30,
+    max_fills_per_day: float = 200.0,
+    max_fills_total: int = 100_000,
+) -> pl.DataFrame:
+    """Pass-2 extraction wallets (DECISIONS d-013): necessary conditions of the
+    §7.1 gates plus cadence caps that drop hyperactive bot/MM accounts."""
+    tot = wallet_month.group_by("wallet").agg(
+        vol=pl.col("volume_usdc").sum(),
+        fills=pl.col("n_fills").sum(),
+        tok=pl.col("n_tokens").sum(),
+        first=pl.col("first_ts").min(),
+        last=pl.col("last_ts").max(),
+    )
+    return (
+        tot.with_columns(days=(pl.col("last") - pl.col("first")) / 86_400 + 1)
+        .with_columns(fpd=pl.col("fills") / pl.col("days"))
+        .filter(
+            (pl.col("vol") >= min_volume_usd)
+            & (pl.col("tok") >= min_tokens)
+            & (pl.col("fills") >= min_fills)
+            & (pl.col("fpd") <= max_fills_per_day)
+            & (pl.col("fills") <= max_fills_total)
+        )
+        .sort("vol", descending=True)
     )

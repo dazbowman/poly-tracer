@@ -26,13 +26,13 @@ WITH f AS (
          makerAssetId AS ma, takerAssetId AS ta,
          TRY_CAST(makerAmountFilled AS HUGEINT) AS mamt,
          TRY_CAST(takerAmountFilled AS HUGEINT) AS tamt,
-         TRY_CAST("timestamp" AS BIGINT) AS ts,
-         transactionHash AS tx
+         TRY_CAST("timestamp" AS BIGINT) AS ts
   FROM read_parquet(?)
-  WHERE makerAssetId = '0' OR takerAssetId = '0'
+  WHERE (makerAssetId = '0' OR takerAssetId = '0')
+    AND "timestamp" >= ? AND "timestamp" < ?
 ),
 fills AS (
-  SELECT ts, tx, maker, taker,
+  SELECT ts, maker, taker,
          CASE WHEN ma = '0' THEN ta ELSE ma END AS token_id,
          CAST(CASE WHEN ma = '0' THEN mamt ELSE tamt END AS DOUBLE) / 1e6 AS usdc,
          CAST(CASE WHEN ma = '0' THEN tamt ELSE mamt END AS DOUBLE) / 1e6 AS shares,
@@ -40,22 +40,23 @@ fills AS (
   FROM f
 ),
 legs AS (
-  SELECT ts, tx, maker AS wallet, taker AS counterparty, token_id, usdc, shares,
+  -- tx hash and counterparty dropped for size (DECISIONS d-014)
+  SELECT ts, maker AS wallet, token_id, usdc, shares,
          maker_bought AS bought, 'maker' AS role
   FROM fills
   UNION ALL
-  SELECT ts, tx, taker, maker, token_id, usdc, shares,
+  SELECT ts, taker, token_id, usdc, shares,
          NOT maker_bought, 'taker'
   FROM fills
 )
-SELECT l.ts, l.wallet, l.counterparty,
+SELECT l.ts, l.wallet,
        t.condition_id,
        l.token_id,
        CASE WHEN l.bought = t.is_yes THEN 1 ELSE -1 END AS canon_dir,
        l.shares, l.usdc,
        CASE WHEN t.is_yes THEN l.usdc / l.shares
             ELSE 1.0 - l.usdc / l.shares END AS price_yes_equiv,
-       l.bought, l.role, l.tx
+       l.bought, l.role
 FROM legs l
 JOIN token_map t ON l.token_id = t.token_id
 WHERE l.wallet IN (SELECT wallet FROM candidates) AND l.shares > 0
@@ -68,7 +69,8 @@ WITH f AS (
          TRY_CAST(takerAmountFilled AS HUGEINT) AS tamt,
          TRY_CAST("timestamp" AS BIGINT) AS ts
   FROM read_parquet(?)
-  WHERE makerAssetId = '0' OR takerAssetId = '0'
+  WHERE (makerAssetId = '0' OR takerAssetId = '0')
+    AND "timestamp" >= ? AND "timestamp" < ?
 ),
 fills AS (
   SELECT ts,
@@ -113,7 +115,7 @@ def register_reference_tables(con: duckdb.DuckDBPyConnection) -> None:
     con.sql(
         f"""
         CREATE OR REPLACE TEMP VIEW candidates AS
-        SELECT wallet FROM read_parquet('{paths.UNIVERSE_DIR / "candidates.parquet"}')
+        SELECT wallet FROM read_parquet('{paths.UNIVERSE_DIR / "candidates_extract.parquet"}')
         """
     )
 
@@ -124,22 +126,29 @@ def month_tag(remote_file: str) -> str:
     return f"{parts[-2].split('=')[1]}-{parts[-1].split('=')[1].split('.')[0]}"
 
 
-def process_file(con: duckdb.DuckDBPyConnection, remote_file: str) -> None:
+def process_file(con: duckdb.DuckDBPyConnection, remote_file: str, n_slices: int = 1) -> None:
+    """Extract fills_norm + prices_5m for one month, in ts slices (big 2026
+    months spill otherwise; interior edges are 300s-aligned so prices buckets
+    never straddle slices — see universe.ts_slices)."""
+    from polycopy.history.universe import ts_slices
+
     tag = month_tag(remote_file)
-    fills_out = paths.FILLS_DIR / f"fills_{tag}.parquet"
-    prices_out = paths.PRICES_DIR / f"prices5m_{tag}.parquet"
     paths.FILLS_DIR.mkdir(parents=True, exist_ok=True)
     paths.PRICES_DIR.mkdir(parents=True, exist_ok=True)
-    if fills_out.exists() and prices_out.exists():
-        log.info("skip (exists): %s", tag)
-        return
-    if not fills_out.exists():
-        tmp = fills_out.with_suffix(".tmp.parquet")
-        con.sql(FILLS_NORM_SQL, params=[remote_file]).write_parquet(str(tmp), compression="zstd")
-        tmp.replace(fills_out)
-        log.info("%s fills_norm done", tag)
-    if not prices_out.exists():
-        tmp = prices_out.with_suffix(".tmp.parquet")
-        con.sql(PRICES_5M_SQL, params=[remote_file]).write_parquet(str(tmp), compression="zstd")
-        tmp.replace(prices_out)
-        log.info("%s prices_5m done", tag)
+    for i, (lo, hi) in enumerate(ts_slices(remote_file, n_slices)):
+        fills_out = paths.FILLS_DIR / f"fills_{tag}_s{i}.parquet"
+        prices_out = paths.PRICES_DIR / f"prices5m_{tag}_s{i}.parquet"
+        if not fills_out.exists():
+            tmp = fills_out.with_suffix(".tmp.parquet")
+            con.sql(FILLS_NORM_SQL, params=[remote_file, lo, hi]).write_parquet(
+                str(tmp), compression="zstd"
+            )
+            tmp.replace(fills_out)
+            log.info("%s s%d fills_norm done", tag, i)
+        if not prices_out.exists():
+            tmp = prices_out.with_suffix(".tmp.parquet")
+            con.sql(PRICES_5M_SQL, params=[remote_file, lo, hi]).write_parquet(
+                str(tmp), compression="zstd"
+            )
+            tmp.replace(prices_out)
+            log.info("%s s%d prices_5m done", tag, i)

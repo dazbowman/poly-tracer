@@ -67,3 +67,9 @@ One entry per non-obvious choice: date, decision, alternatives, reason. Newest l
 
 - Decision (to implement in Phase 3): Holdout B (2026-04-25→now) freezes the candidate pool to wallets known at 2026-04-24; API backfill (/v2/trades) only for the top ~3,000 candidates by as-of score/volume plus every wallet any shortlisted config ever selected; prices from /v2/prices-history at 5-min buckets; execution falls back to last-price+1.5¢ mode when taker-VWAP is unavailable.
 - Reason: full-universe backfill would need ~10^5–10^6 API requests. The spec already labels Holdout B "weaker; report separately"; a frozen candidate pool keeps it honest (point-in-time, same selection algorithm) at feasible cost. The §9 Phase 4 parity check still validates API-vs-dataset selection overlap.
+
+**d-013 · 2026-11-15 · Pass-2 extraction set: gate-necessary conditions + cadence caps**
+
+- Decision: fills_norm extracts only wallets satisfying necessary conditions of the §7.1 gates (lifetime volume ≥ $25k, distinct-token upper bound ≥ 30, fills ≥ 30) AND cadence caps (≤ 200 fills/day lifetime average, ≤ 100k lifetime fills) → 164,576 wallets, ~313M fill-legs, 33% of global volume. The loose pass-1 candidate file (532k wallets, 96.6% of volume) is kept for reporting. Wallets above the cadence caps are auto-labeled hyperactive (bot/MM class) from pass-1 aggregates and reported as such in the Phase-2 landscape without per-fill features.
+- Alternatives: extract everything (~2B legs ≈ 30–50 GB, exceeds the disk allowance); tighter caps (fpd ≤ 100 risks cutting bursty sports bettors).
+- Reason: the cut volume is exactly the §7.3-excluded churn (volume/PnL > 200, sub-10s cadence). A >200-fills/day account is not a copyable signal source for a 30-minute-latency taker strategy; any "edge" there is latency/liquidity-provision edge by construction. prices_5m still aggregates ALL fills.

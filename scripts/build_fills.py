@@ -31,7 +31,8 @@ def main() -> int:
         files = files[: args.files_limit]
     t0 = time.time()
     for i, f in enumerate(files, 1):
-        fills.process_file(con, f)
+        n_slices = 8 if "year=2026" in f else 1
+        fills.process_file(con, f, n_slices=n_slices)
         log.info("[%d/%d] %.0fs elapsed", i, len(files), time.time() - t0)
     return 0
 

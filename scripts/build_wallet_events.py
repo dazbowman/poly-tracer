@@ -56,7 +56,7 @@ WHERE lower(id) IN (SELECT wallet FROM read_parquet(?))
 def main() -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     con = universe.connect()
-    cand = str(paths.UNIVERSE_DIR / "candidates.parquet")
+    cand = str(paths.UNIVERSE_DIR / "candidates_extract.parquet")
     base = paths.HF_BASE
     years = "year=202[456]"
 
