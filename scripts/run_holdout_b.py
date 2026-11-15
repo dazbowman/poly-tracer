@@ -158,48 +158,103 @@ def b_selections(cfg: Config) -> dict[int, list[str]]:
     return sels
 
 
+CHUNK_DAYS = 14  # /v2/prices-history rejects spans > 15 days
+
+
 def step_prices(cfg: Config) -> None:
-    """Crawl 5-min price history for every token of every condition a watched
-    wallet touched inside the B window (signal + execution universe)."""
+    """Crawl 5-min price history for tokens of conditions that can actually
+    produce a signal: >= k_min distinct watched wallets with a buy inside one
+    flow_window (any direction — a strict superset of fresh_flow signals).
+    The engine skips entries whose token has no tape, and non-signalable
+    conditions never reach entry, so the omitted tapes are unreachable.
+    Spans are clipped to [first watched buy - 7d, resolution + 1d] and chunked
+    to the API's 15-day request limit."""
     out = HB / "prices"
     out.mkdir(parents=True, exist_ok=True)
     sels = b_selections(cfg)
     watched = sorted({w for ws in sels.values() for w in ws})
     log.info("%d refreshes, %d watched wallets", len(sels), len(watched))
     t0s, t1s = ts(B_START), ts(B_END)
-    conds = (
+    buys = (
         pool_fills()
-        .filter(pl.col("wallet").is_in(watched) & (pl.col("ts") >= t0s) & (pl.col("ts") < t1s))
-        .select("condition_id")
+        .filter(
+            pl.col("wallet").is_in(watched)
+            & (pl.col("ts") >= t0s)
+            & (pl.col("ts") < t1s)
+            & pl.col("bought")
+        )
+        .select("condition_id", "wallet", "ts")
         .unique()
         .collect(engine="streaming")
+        .sort("condition_id", "ts")
     )
-    mk = load_markets_frame().lazy().join(conds.lazy(), on="condition_id", how="semi").collect()
-    tokens = sorted(set(mk["yes_token_id"]) | set(mk["no_token_id"]) - {None})
-    log.info("conditions: %d -> tokens to crawl: %d", conds.height, len(tokens))
+    k, win = cfg.signal.k_min, cfg.signal.flow_window_hours * 3600
+    keep: list[str] = []
+    for cond, grp in buys.group_by("condition_id", maintain_order=True):
+        t = grp["ts"].to_numpy()
+        w = grp["wallet"].to_list()
+        seen: dict[str, int] = {}
+        j = 0
+        for i in range(len(t)):
+            seen[w[i]] = seen.get(w[i], 0) + 1
+            while t[i] - t[j] > win:
+                seen[w[j]] -= 1
+                if not seen[w[j]]:
+                    del seen[w[j]]
+                j += 1
+            if len(seen) >= k:
+                keep.append(cond[0])
+                break
+    log.info("signalable conditions: %d / %d touched", len(keep), buys["condition_id"].n_unique())
+    spans = buys.group_by("condition_id").agg(t_min=pl.col("ts").min())
+    mk = (
+        load_markets_frame()
+        .lazy()
+        .filter(pl.col("condition_id").is_in(keep))
+        .join(spans.lazy(), on="condition_id", how="inner")
+        .select("yes_token_id", "no_token_id", "resolved_ts", "t_min")
+        .collect()
+    )
+    jobs: list[tuple[str, int, int]] = []  # (token, crawl_start, crawl_end)
+    for r in mk.iter_rows(named=True):
+        c0 = r["t_min"] - 7 * DAY
+        c1 = min(t1s, (r["resolved_ts"] // 1000 + DAY) if r["resolved_ts"] else t1s)
+        for tok in (r["yes_token_id"], r["no_token_id"]):
+            if tok and c0 < c1:
+                jobs.append((tok, c0, c1))
+    n_req = sum(-(-(c1 - c0) // (CHUNK_DAYS * DAY)) for _, c0, c1 in jobs)
+    log.info("tokens to crawl: %d (~%d requests)", len(jobs), n_req)
     api = DataApiClient(cache_dir=paths.CACHE / "data_api")
     done_f = out / "done_tokens.txt"
     done = set(done_f.read_text().split()) if done_f.exists() else set()
     rows: list[dict] = []
     part = len(list(out.glob("part_*.parquet")))
+    n_fail = 0
     t0 = time.time()
-    for i, tok in enumerate(tokens, 1):
-        if tok in done:
-            continue
-        try:
-            hist = api.prices_history(tok, start=t0s - 7 * DAY, end=t1s, bucket_seconds=300)
-        except Exception as e:
-            log.warning("prices-history failed for %s: %s", tok, e)
-            hist = []
-        rows.extend({"token_id": tok, **r} for r in hist)
-        done.add(tok)
-        if len(rows) >= 200_000 or i == len(tokens):
+    for i, (tok, c0, c1) in enumerate(jobs, 1):
+        if tok not in done:
+            try:
+                got: list[dict] = []
+                s = c0
+                while s < c1:
+                    e = min(s + CHUNK_DAYS * DAY, c1)
+                    hist = api.prices_history(tok, start=s, end=e, bucket_seconds=300)
+                    got.extend({"token_id": tok, **r} for r in hist)
+                    s = e
+                rows.extend(got)
+                done.add(tok)  # failures stay un-done -> retried on the next run
+            except Exception as e:
+                n_fail += 1
+                log.warning("prices-history failed for %s: %s", tok, e)
+        if len(rows) >= 200_000 or i == len(jobs):
             if rows:
                 pl.DataFrame(rows).write_parquet(out / f"part_{part:03d}.parquet")
                 part += 1
                 rows = []
             done_f.write_text("\n".join(sorted(done)))
-            log.info("prices: %d/%d tokens (%.0fs)", i, len(tokens), time.time() - t0)
+            log.info(
+                "prices: %d/%d tokens (%.0fs, %d failed)", i, len(jobs), time.time() - t0, n_fail
+            )
 
 
 def step_run(cfg: Config) -> None:
