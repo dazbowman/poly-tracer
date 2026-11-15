@@ -1,0 +1,58 @@
+bankroll_usd: 10000
+universe:
+  lookback_days: 180
+  min_resolved_markets: 30
+  min_volume_usd: 25000
+  active_within_days: 30
+selection:
+  method: skill            # skill | naive_pnl
+  n_wallets: 20            # sweep: 5, 10, 20, 40
+  refresh: weekly
+  fdr_q: 0.10
+  shrink_n0: 30
+  per_category: false      # sweep true/false
+  min_category_markets: 15
+filters:
+  mm_two_sided_share_max: 0.30
+  mm_split_merge_share_max: 0.20
+  mm_volume_to_abs_pnl_max: 200
+  bot_short_crypto_share_max: 0.30
+  one_hit_top_market_share_max: 0.50
+signal:
+  type: fresh_flow         # holdings | fresh_flow | single_wallet
+  k_min: 2                 # sweep: 1 (single only), 2, 3, 5
+  flow_window_hours: 24    # sweep: 1, 6, 24, 72
+  min_wallet_position_usd: 500
+  min_wallet_add_usd: 250
+  min_conviction_ratio: 1.0
+  chase_limit_cents: 5     # sweep: 2, 5, 10, null
+  price_min: 0.05
+  price_max: 0.92
+  min_time_to_resolution_hours: 6
+  max_time_to_resolution_days: 120
+  exclude_categories: [crypto_short]
+  conflict_rule: net
+sizing:
+  per_trade_pct: 2.0
+  max_event_pct: 6.0
+  max_deployed_pct: 60
+  max_book_participation: 0.25
+  min_order_usd: 50
+exit:
+  rule: hold_to_resolution # hold_to_resolution | follow_exit
+  follow_exit_threshold: 0.5
+execution:
+  latency_minutes: 30      # decay sweep: 1, 5, 15, 30, 60, 240
+  backtest_window_minutes: 10
+  backtest_penalty_cents: 1.0
+  unfillable_after_minutes: 60
+  venue_priority: [polymarket_us, kalshi]
+  reference_venue: polymarket_global
+fees:
+  polymarket_us: {theta: 0.095, rounding: bankers_cent}   # T1; verify docs.polymarket.us/fees.md
+  kalshi: {coeff: 0.07, rounding: ceil_cent}              # verify docs.kalshi.com
+  polymarket_global: {source: clob_fee_rate}
+stats:
+  bootstrap_resamples: 10000
+  block: event
+seed: 1729

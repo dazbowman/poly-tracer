@@ -1,0 +1,21 @@
+# data and caches (spec: commit no data files to main)
+data/
+*.parquet
+*.duckdb
+*.sqlite
+*.db
+
+# python
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+build/
+.venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+
+# os / editor
+.DS_Store
+*.swp
