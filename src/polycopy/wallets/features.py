@@ -17,6 +17,24 @@ from polycopy.wallets.pnl import market_returns
 from polycopy.wallets.skill import benjamini_hochberg, shrunk_lcb_score, sign_flip_pvalue
 
 DAY_S = 86_400
+N_WALLET_BUCKETS = 4
+
+
+def _collect_bucketed(
+    builder, fills_lb: pl.LazyFrame, markets: pl.LazyFrame, n: int = N_WALLET_BUCKETS
+) -> pl.DataFrame:
+    """Collect a per-wallet aggregation in wallet-hash buckets to bound memory.
+
+    Each wallet falls entirely in one bucket, so per-wallet rows are identical
+    to a single pass; peak 180d windows (>100M legs) OOM a 14GB cgroup otherwise.
+    """
+    parts = [
+        builder(fills_lb.filter(pl.col("wallet").hash(0) % n == k), markets).collect(
+            engine="streaming"
+        )
+        for k in range(n)
+    ]
+    return pl.concat(parts)
 
 
 def activity_base(fills_lb: pl.LazyFrame, markets: pl.LazyFrame) -> pl.LazyFrame:
@@ -176,7 +194,7 @@ def build_features_asof(
     rets_lazy = rets_lazy.filter(
         (pl.col("resolved_s") < asof_ts) & (pl.col("resolved_s") >= lb_start)
     )
-    base = activity_base(fills_lb, markets).collect(engine="streaming")
+    base = _collect_bucketed(activity_base, fills_lb, markets)
     # The remaining per-wallet work (the sign-flip loop, the per-token-day and
     # per-condition aggregates) is only ever read from rows that pass the §7.1
     # gates below, so compute it for exactly those wallets. Per-wallet RNG seeds
@@ -195,7 +213,7 @@ def build_features_asof(
     )
     rets = rets_lazy.join(gate_wallets, on="wallet", how="semi").collect(engine="streaming")
     fills_gated = fills_lb.join(gate_wallets, on="wallet", how="semi")
-    detail = activity_detail(fills_gated, markets).collect(engine="streaming")
+    detail = _collect_bucketed(activity_detail, fills_gated, markets)
     act = base.join(detail, on="wallet", how="left")
     ev = (
         wallet_events.filter((pl.col("ts") >= lb_start) & (pl.col("ts") < asof_ts))
