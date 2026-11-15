@@ -106,7 +106,13 @@ def main() -> int:
                 "[%d/%d] %s: %d candidates (%.0fs)", i, len(dates), tag, df.height, time.time() - t0
             )
         if not args.skip_naive and not n_out.exists():
-            naive = window_marked_pnl(fills, prices, t0=asof - 30 * DAY_S, t1=asof)
+            # selection inner-joins naive pnl with the gate-passing candidates
+            # (select.py), so only their window pnl is ever read — restricting
+            # the (wallet, token) position group-by to them bounds memory
+            cand = pl.scan_parquet(f_out).select("wallet").unique()
+            naive = window_marked_pnl(
+                fills.join(cand, on="wallet", how="semi"), prices, t0=asof - 30 * DAY_S, t1=asof
+            )
             naive.write_parquet(n_out, compression="zstd")
             log.info(
                 "[%d/%d] %s: naive pnl %d wallets (%.0fs)",

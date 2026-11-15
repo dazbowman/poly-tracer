@@ -64,7 +64,7 @@ def window_marked_pnl(
         .group_by("wallet")
         .agg(naive_window_pnl=pl.col("pnl").sum())
     )
-    return out.collect()
+    return out.collect(engine="streaming")
 
 
 def select_wallets(

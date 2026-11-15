@@ -19,11 +19,11 @@ from polycopy.wallets.skill import benjamini_hochberg, shrunk_lcb_score, sign_fl
 DAY_S = 86_400
 
 
-def activity_features(fills_lb: pl.LazyFrame, markets: pl.LazyFrame) -> pl.LazyFrame:
-    """Features from lookback-window fills (ts already filtered by caller)."""
+def activity_base(fills_lb: pl.LazyFrame, markets: pl.LazyFrame) -> pl.LazyFrame:
+    """Per-wallet scalars incl. every §7.1 gate input (all wallets; small group state)."""
     cat = markets.select("condition_id", "category_bucket")
     f = fills_lb.join(cat, on="condition_id", how="left")
-    base = f.group_by("wallet").agg(
+    return f.group_by("wallet").agg(
         volume_usdc=pl.col("usdc").sum(),
         maker_share=(pl.col("usdc").filter(pl.col("role") == "maker").sum() / pl.col("usdc").sum()),
         n_fills=pl.len(),
@@ -36,7 +36,15 @@ def activity_features(fills_lb: pl.LazyFrame, markets: pl.LazyFrame) -> pl.LazyF
         median_intertrade_s=pl.col("ts").sort().diff().median(),
         active_hours=((pl.col("ts") % DAY_S) // 3600).n_unique(),
     )
-    # category mix as separate aggregation (volume share per bucket, top-3 string)
+
+
+def activity_detail(fills_lb: pl.LazyFrame, markets: pl.LazyFrame) -> pl.LazyFrame:
+    """Per-(wallet, token/condition) aggregates. The group state here is per
+    token-day, so callers restrict fills_lb to the wallets whose rows survive
+    the §7.1 gates (the only rows these columns are ever read from)."""
+    cat = markets.select("condition_id", "category_bucket")
+    f = fills_lb.join(cat, on="condition_id", how="left")
+    # category mix (volume share per bucket, top bucket + its share)
     mix = (
         f.group_by("wallet", "category_bucket")
         .agg(v=pl.col("usdc").sum())
@@ -78,10 +86,13 @@ def activity_features(fills_lb: pl.LazyFrame, markets: pl.LazyFrame) -> pl.LazyF
             median_market_cost=pl.col("mkt_cost").drop_nulls().median(),
         )
     )
-    return (
-        base.join(mix, on="wallet", how="left")
-        .join(two, on="wallet", how="left")
-        .join(hold, on="wallet", how="left")
+    return mix.join(two, on="wallet", how="left").join(hold, on="wallet", how="left")
+
+
+def activity_features(fills_lb: pl.LazyFrame, markets: pl.LazyFrame) -> pl.LazyFrame:
+    """Features from lookback-window fills (ts already filtered by caller)."""
+    return activity_base(fills_lb, markets).join(
+        activity_detail(fills_lb, markets), on="wallet", how="left"
     )
 
 
@@ -165,12 +176,13 @@ def build_features_asof(
     rets_lazy = rets_lazy.filter(
         (pl.col("resolved_s") < asof_ts) & (pl.col("resolved_s") >= lb_start)
     )
-    act = activity_features(fills_lb, markets).collect()
-    # The sign-flip loop is per-wallet python+numpy, so restrict it to wallets
-    # that can pass the §7.1 gates below (per-wallet RNG seeds and the post-gate
-    # BH make this a pure speedup: kept rows are byte-identical)
+    base = activity_base(fills_lb, markets).collect(engine="streaming")
+    # The remaining per-wallet work (the sign-flip loop, the per-token-day and
+    # per-condition aggregates) is only ever read from rows that pass the §7.1
+    # gates below, so compute it for exactly those wallets. Per-wallet RNG seeds
+    # and the post-gate BH make this a pure speedup: kept rows are identical.
     gate_wallets = (
-        act.lazy()
+        base.lazy()
         .join(rets_lazy.group_by("wallet").agg(nrm=pl.len()), on="wallet", how="inner")
         .filter(
             (pl.col("nrm") >= cfg.universe.min_resolved_markets)
@@ -178,14 +190,19 @@ def build_features_asof(
             & (pl.col("last_trade_ts") >= asof_ts - cfg.universe.active_within_days * DAY_S)
         )
         .select("wallet")
+        .collect(engine="streaming")
+        .lazy()
     )
-    rets = rets_lazy.join(gate_wallets, on="wallet", how="semi").collect()
+    rets = rets_lazy.join(gate_wallets, on="wallet", how="semi").collect(engine="streaming")
+    fills_gated = fills_lb.join(gate_wallets, on="wallet", how="semi")
+    detail = activity_detail(fills_gated, markets).collect(engine="streaming")
+    act = base.join(detail, on="wallet", how="left")
     ev = (
         wallet_events.filter((pl.col("ts") >= lb_start) & (pl.col("ts") < asof_ts))
         .filter(pl.col("kind").is_in(["split", "merge", "convert"]))
         .group_by("wallet")
         .agg(split_merge_usdc=pl.col("amount_usdc").sum())
-        .collect()
+        .collect(engine="streaming")
     )
     sk = skill_features(rets, n0=cfg.selection.shrink_n0, seed=cfg.seed)
 
@@ -207,7 +224,7 @@ def build_features_asof(
         (pl.col("n_resolved_markets") >= cfg.universe.min_resolved_markets)
         & (pl.col("volume_usdc") >= cfg.universe.min_volume_usd)
         & (pl.col("last_trade_ts") >= asof_ts - cfg.universe.active_within_days * DAY_S)
-    )
+    ).sort("wallet")  # join row order is thread-dependent; BH tie-breaks must not be
     # FDR across the candidates that reached this point
     if df.height:
         mask = benjamini_hochberg(
@@ -224,5 +241,5 @@ def build_features_asof(
         )
     df = classify(df, cfg)
     return df.with_columns(asof_ts=pl.lit(asof_ts, dtype=pl.Int64)).sort(
-        "score", descending=True, nulls_last=True
+        "score", "wallet", descending=[True, False], nulls_last=True
     )
