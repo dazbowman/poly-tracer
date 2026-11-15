@@ -54,10 +54,11 @@ def check_monthly_volumes() -> None:
 
 
 def check_api_crosscheck(n: int = 20) -> None:
+    # sample from two month files only (memory-light), takers (trade events)
+    some_files = sorted((paths.FILLS_DIR).glob("*.parquet"))[-20::7]
     fills = (
-        pl.scan_parquet(paths.FILLS_DIR / "*.parquet")
-        .filter(pl.col("role") == "taker")  # /v2/trades keys on trade events
-        .collect()
+        pl.concat([pl.read_parquet(f) for f in some_files[:3]])
+        .filter(pl.col("role") == "taker")
         .sample(n=400, seed=7)
     )
     api = PoliteClient("https://data-api.polymarket.com", cache_dir=paths.CACHE / "data_api")

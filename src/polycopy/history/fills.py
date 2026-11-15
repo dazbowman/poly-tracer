@@ -1,12 +1,23 @@
 """Pass 2 (SPEC §9 Phase 1.4): normalized candidate fills + 5m price bars per token.
 
-Fill semantics (SPEC §3.1): the side whose assetId is '0' pays USDC and BUYS the
-other side's outcome token. Amounts are 1e6-scaled integers. The taker is the
-aggressor: makerAssetId != '0' (maker provides the token) means the taker BOUGHT.
+CTF-exchange event semantics (learned the hard way — see DATA_NOTES and d-014):
+every OrderFilled event describes exactly ONE order's fill slice, owned by the
+event's `maker` field. The `taker` field is metadata: the matching counterparty
+for a resting (maker) order's event, or the EXCHANGE CONTRACT for the taker
+order's own aggregate event. Therefore:
 
-Canonical direction (SPEC §4.1): +1 = buys Yes-equivalent. Buying No counts as
-selling Yes at 1 - p, so canon_dir = +1 iff (BUY and yes-token) or (SELL and
-no-token); price_yes_equiv = p for the yes token, 1 - p for the no token.
+- one normalized leg per event, wallet = lower(maker);
+- the owner BOUGHT the outcome token iff makerAssetId = '0' (gave USDC);
+- role: 'taker' (aggressor) iff the taker field is an exchange contract,
+  else 'maker' (resting). Never synthesize a leg for the taker field — that
+  double-counts aggressors and mis-attributes complementary tokens in
+  mint/merge matches.
+- prices_5m uses AGGRESSOR events only: one row per match on the aggressor's
+  token — the same tape the Data API's /v2/trades shows and the live paper
+  trader will consume.
+
+Canonical direction (SPEC §4.1): +1 = buys Yes-equivalent; buying No counts as
+selling Yes at 1 - p.
 """
 
 from __future__ import annotations
@@ -19,10 +30,19 @@ from polycopy import paths
 
 log = logging.getLogger(__name__)
 
-# token map: token_id -> (condition_id, is_yes); candidates: wallet
-FILLS_NORM_SQL = """
-WITH f AS (
-  SELECT lower(maker) AS maker, lower(taker) AS taker,
+# exchange contracts seen in the taker field (verified empirically: the two
+# top taker-field addresses by count, matching the known CTF and NegRisk CTF
+# exchange deployments on Polygon)
+EXCHANGE_ADDRESSES = (
+    "0x4bfb41d5b3570defd03c39a9a4d8de6bd8b8982e",  # CTF Exchange
+    "0xc5d563a36ae78145c45a50134d48a1215220f80a",  # NegRisk CTF Exchange
+)
+_EXCH_SQL = "('" + "','".join(EXCHANGE_ADDRESSES) + "')"
+
+FILLS_NORM_SQL = f"""
+WITH ev AS (
+  SELECT lower(maker) AS wallet,
+         lower(taker) IN {_EXCH_SQL} AS is_aggressor,
          makerAssetId AS ma, takerAssetId AS ta,
          TRY_CAST(makerAmountFilled AS HUGEINT) AS mamt,
          TRY_CAST(takerAmountFilled AS HUGEINT) AS tamt,
@@ -30,24 +50,16 @@ WITH f AS (
   FROM read_parquet(?)
   WHERE (makerAssetId = '0' OR takerAssetId = '0')
     AND "timestamp" >= ? AND "timestamp" < ?
+    AND lower(maker) NOT IN {_EXCH_SQL}
 ),
-fills AS (
-  SELECT ts, maker, taker,
+legs AS (
+  SELECT ts, wallet,
          CASE WHEN ma = '0' THEN ta ELSE ma END AS token_id,
          CAST(CASE WHEN ma = '0' THEN mamt ELSE tamt END AS DOUBLE) / 1e6 AS usdc,
          CAST(CASE WHEN ma = '0' THEN tamt ELSE mamt END AS DOUBLE) / 1e6 AS shares,
-         (ma = '0') AS maker_bought
-  FROM f
-),
-legs AS (
-  -- tx hash and counterparty dropped for size (DECISIONS d-014)
-  SELECT ts, maker AS wallet, token_id, usdc, shares,
-         maker_bought AS bought, 'maker' AS role
-  FROM fills
-  UNION ALL
-  SELECT ts, taker, token_id, usdc, shares,
-         NOT maker_bought, 'taker'
-  FROM fills
+         (ma = '0') AS bought,
+         CASE WHEN is_aggressor THEN 'taker' ELSE 'maker' END AS role
+  FROM ev
 )
 SELECT l.ts, l.wallet,
        t.condition_id,
@@ -62,23 +74,20 @@ JOIN token_map t ON l.token_id = t.token_id
 WHERE l.wallet IN (SELECT wallet FROM candidates) AND l.shares > 0
 """
 
-PRICES_5M_SQL = """
-WITH f AS (
-  SELECT makerAssetId AS ma, takerAssetId AS ta,
-         TRY_CAST(makerAmountFilled AS HUGEINT) AS mamt,
-         TRY_CAST(takerAmountFilled AS HUGEINT) AS tamt,
+PRICES_5M_SQL = f"""
+WITH agg AS (
+  -- aggressor (taker) events only: one per match, on the aggressor's token
+  SELECT CASE WHEN makerAssetId = '0' THEN takerAssetId ELSE makerAssetId END AS token_id,
+         CAST(TRY_CAST(CASE WHEN makerAssetId = '0' THEN makerAmountFilled
+                            ELSE takerAmountFilled END AS HUGEINT) AS DOUBLE) / 1e6 AS usdc,
+         CAST(TRY_CAST(CASE WHEN makerAssetId = '0' THEN takerAmountFilled
+                            ELSE makerAmountFilled END AS HUGEINT) AS DOUBLE) / 1e6 AS shares,
+         (makerAssetId = '0') AS taker_bought,
          TRY_CAST("timestamp" AS BIGINT) AS ts
   FROM read_parquet(?)
   WHERE (makerAssetId = '0' OR takerAssetId = '0')
     AND "timestamp" >= ? AND "timestamp" < ?
-),
-fills AS (
-  SELECT ts,
-         CASE WHEN ma = '0' THEN ta ELSE ma END AS token_id,
-         CAST(CASE WHEN ma = '0' THEN mamt ELSE tamt END AS DOUBLE) / 1e6 AS usdc,
-         CAST(CASE WHEN ma = '0' THEN tamt ELSE mamt END AS DOUBLE) / 1e6 AS shares,
-         (ma <> '0') AS taker_bought
-  FROM f
+    AND lower(taker) IN {_EXCH_SQL}
 )
 SELECT token_id,
        (ts // 300) * 300 AS bucket_ts,
@@ -88,10 +97,10 @@ SELECT token_id,
        sum(usdc) FILTER (NOT taker_bought) / nullif(sum(shares) FILTER (NOT taker_bought), 0)
          AS taker_sell_vwap,
        sum(usdc) AS volume_usdc,
-       sum(usdc) FILTER (taker_bought) AS taker_buy_usdc,
+       coalesce(sum(usdc) FILTER (taker_bought), 0) AS taker_buy_usdc,
        count(*) AS n_trades,
        arg_max(usdc / shares, ts) AS last_price
-FROM fills
+FROM agg
 WHERE shares > 0
 GROUP BY 1, 2
 ORDER BY 1, 2
