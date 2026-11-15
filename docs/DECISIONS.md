@@ -100,3 +100,11 @@ One entry per non-obvious choice: date, decision, alternatives, reason. Newest l
   - V3 `naive_pnl n10 · holdings k3 · conviction 2.0 · hold · lat30` (the owner's original leaderboard+holdings idea, best Train representative: +13.3%, 48 trades)
 - Decision rule (pre-stated): the config taken to Holdout A is the shortlist member with the highest Validation B0-excess among those with Validation ROI > B0 mean and ≥30 resolved trades; if none qualifies, redesign round 1 (Train/Val only) per the §0 stop rule. Latency stays 30min; no further Train tuning after this entry.
 - Multiple-comparisons caveat recorded: the Train winner is the best of ~72 configs; Train p-values are selection-biased by construction. Validation is the first clean read.
+
+**d-018 · 2026-11-15 · Redesign round 1 (of ≤2): widen the consensus funnel**
+
+- Validation verdict under d-017's rule: all three shortlist configs positive with large B0 excess (V1 +52.4% excess, P(B0≥strat)=0.013; V3 +34.3%, P=0.087) but 14/1/10 resolved trades — none reaches the ≥30-trade qualifier, and ~3.5 trades/month would also mechanically fail G2's ≥100-resolved-trades requirement in Phase 4. The failure mode is signal scarcity, not sign.
+- Redesign (pre-registered BEFORE any run; Train/Validation only): keep `fresh_flow k_min=3, 72h window, hold, lat30` and widen the funnel —
+  `selection.n_wallets 40→80`, `signal.min_wallet_add_usd 250→100`, `signal.min_wallet_position_usd 500→250`.
+  Rationale: k=3 consensus depth is what separates positive from negative ROI on Train; N and the per-wallet notional floors only control how often 3 watched wallets can overlap. No category filters, no new signal logic, no latency change.
+- Decision rule (unchanged from d-017): run the redesigned config on Train (sanity), then ONCE on Validation; qualify iff Validation ROI > B0 mean, B0 excess > 0, and ≥30 resolved trades. Qualify → Holdout A once with it. Fail → redesign round 2 or the §0 stop rule (negative-result report).
