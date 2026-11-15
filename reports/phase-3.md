@@ -35,8 +35,13 @@ negative-result report; the project stops here. No paper trader is deployed.
    the paper-trail literature and good news for copyability in principle, but
    irrelevant once selection collapses.
 5. **Holdout B (2026-04-25 → 2026-11-14, API data, price-only execution,
-   reported for completeness — the G1 verdict was already final):**
-   <!--HOLDOUT_B_SUMMARY-->
+   reported for completeness — the G1 verdict was already final): the final
+   gated config does not replicate its Validation result.** 32 signals, 14
+   resolved trades, **ROI −4.9%** (CI −43.4%..+35.7%, one-sided p=0.61). A
+   first pass of this evaluation ran on silently truncated price data and
+   showed +0.7% on 11 trades (d-021 discloses both runs); under either number
+   the out-of-sample evidence for copy alpha is null. Validation's +41.8%
+   reads as small-sample noise, not an edge that carries forward.
 
 ## What was pre-registered, and what happened
 
@@ -106,7 +111,11 @@ the strategy.
 | Redesign r2 (winner + median-market-cost ≥ $50) | Train | 111 | +8.8% | −9.9%..+29.1% | 0.19 | — | — | — |
 | Redesign r2 (final config) | Validation | 15 | **+41.8%** | +1.5%..+80.8% | 0.022 | −9.5% | **+51.3pp** | 0.010 |
 | **V1 frozen — G1 decision** | **Holdout A** | **0** | — | — | — | — | — | — |
-| **Final config — once** | **Holdout B** | <!--HOLDOUT_B_ROW--> |
+| **Final config — once** | **Holdout B** | **14** | **−4.9%** | −43.4%..+35.7% | 0.61 | n/a* | n/a* | n/a* |
+
+\* B0's matched draws require the full taker-flow dataset, which ends
+2026-04-24 (d-012), so no B0 band exists for Holdout B; with ROI < 0, no
+baseline comparison could change the conclusion's sign.
 
 Baselines **B1** (follow-the-crowd: buy what's trending by volume) and **B2**
 (random markets at market price) from SPEC §8 were **not implemented** — B0
@@ -132,7 +141,37 @@ trend; all within each other's CIs.
 
 ## Holdout B (final config, evaluated once)
 
-<!--HOLDOUT_B_SECTION-->
+**Result: ROI −4.9% on 14 resolved trades (CI −43.4%..+35.7%, one-sided
+p=0.61; hit rate 10/14; net −$136 on $2,765 at risk). Validation's +41.8%
+does not replicate forward.**
+
+The evaluation ran once with the frozen final config (d-020). Its first pass
+was invalidated by a data-coverage defect and rerun after a pre-stated,
+mechanical-only fix (d-021): `/v2/prices-history` keeps 5-minute buckets only
+for roughly the last two months of markets and returns an *empty series* —
+not an error — for older tokens, which silently confined every fill to after
+2026-09-17 (that pass: +0.7% on 11 trades, p=0.50). The corrected run falls
+back to the API's native stored resolution (30-min/3-h/12-h buckets for older
+markets), with tape timestamps moved to bucket close so a coarse bucket's
+price is never visible before the bucket ends. Both runs are preserved
+(`data/holdout_b/run/`, `data/holdout_b/run_300s_truncated/`); both are null;
+the corrected one is the headline.
+
+Detail:
+
+- **32 signals spread over Jun–Nov** (~1.1/week) — the same low-throughput
+  regime as Train/Validation; G1(a)-level throughput stays out of reach even
+  before fills.
+- **15 of 32 signals were refused by the §7.7 staleness rule** (no price
+  print within 60 minutes of execution) — all 15 in Jun–Aug, where only
+  coarse buckets survive. The 14 fills are the executable subset under the
+  frozen execution model, concentrated in the fine-tape era; they are not a
+  random draw of the 32 signals.
+- Monthly ROI is sign-mixed (Jul +12%, Aug −45%, Sep +21%, Oct −24%, Nov
+  +38%), as are categories (crypto +$157 on 5, politics +$219 on 3,
+  geopolitics −$392 on 3, economics −$176 on 2, sports +$56 on 1). The
+  largest single event made +$373 against the −$136 net — the same
+  event-concentration shape G1(d) was written to catch.
 
 Holdout B is **weaker evidence by construction** (d-012, d-020): the local
 dataset ends 2026-04-24, so this window runs on public API data with a frozen
@@ -142,11 +181,15 @@ wallet pool and price-only execution:
   wallet ever selected by the shortlisted configs across all 96 historical
   refresh dates). Wallets that first became prominent *after* the freeze can
   never be selected — B selection is restricted to the cutoff-era universe.
-- **Execution:** `/v2/prices-history` 5-minute last-trade prices only (the
-  API's 15-day span limit was handled by chunked requests). No taker tape →
-  every fill uses the §7.7 thin-market fallback (last price + 1.5¢ + 1¢
-  penalty), no volume-scaled slippage, no participation cap. Fills are
-  therefore **optimistic** on fillability relative to the dataset backtest.
+- **Execution:** `/v2/prices-history` last-trade prices only, at the API's
+  retention: 5-minute buckets for recent markets, 30-min/3-h/12-h native
+  buckets for older ones (its 15-day span limit was handled by chunked
+  requests; tape timestamps are bucket closes). No taker tape → every fill
+  uses the §7.7 thin-market fallback (last price + 1.5¢ + 1¢ penalty), no
+  volume-scaled slippage, no participation cap. Fills that happen are
+  therefore **optimistic** on price impact, while coarse-tape-era signals
+  often cannot fill at all under the staleness rule — both directions of
+  unrealism are disclosed rather than modeled.
 - **Features:** weekly scores recomputed per refresh from pool-wallet fills
   only; split/merge events after the cutoff are missing (d-012), which can
   distort position tracking for wallets holding pre-cutoff inventory.
@@ -159,11 +202,13 @@ rounds are consumed; per the SPEC §9 stop rule and Operating Rule 10, Phase 4
 negative result. The research question is answered for this strategy class:
 
 > Copying Polymarket wallets selected on past performance does not beat the
-> market at any deployable scale. A small, genuine copy edge exists in rare
-> k≥3 consensus events among size-credible skilled wallets (~1–2 trades/week,
-> concentrated), but it fails every pre-registered robustness requirement —
-> throughput, event concentration, and out-of-sample selection stability —
-> and the act of widening it to meet those requirements destroys it.
+> market at any deployable scale. A small copy edge appears in rare k≥3
+> consensus events among size-credible skilled wallets (~1–2 trades/week,
+> concentrated) on Train and Validation, but it fails every pre-registered
+> robustness requirement — throughput, event concentration, out-of-sample
+> selection stability — the act of widening it to meet those requirements
+> destroys it, and it does not replicate on the final out-of-sample window
+> (Holdout B: −4.9%, p=0.61).
 
 ## Caveats (full list)
 
@@ -181,10 +226,14 @@ negative result. The research question is answered for this strategy class:
    after observing *why* Holdout A failed. Its Validation result is
    encouraging but post-hoc.
 5. **Holdout B execution realism** is reduced: price-only tapes (optimistic
-   fills, no capacity modeling), frozen pool (no post-cutoff entrants),
-   missing post-cutoff split/merge events, and API trade history that
-   cross-checked 19/20 against the dataset (d-015; one wallet had missing
-   early history).
+   price impact, no capacity modeling), price history at the API's native
+   retention — 5-minute buckets only for roughly the last two months, coarser
+   before, leaving 15 of 32 signals unfillable under the staleness rule
+   (d-021) — frozen pool (no post-cutoff entrants), missing post-cutoff
+   split/merge events, and API trade history that cross-checked 19/20 against
+   the dataset (d-015; one wallet had missing early history). The first,
+   silently truncated pass (+0.7%/11 trades) is preserved as a sensitivity
+   point.
 6. **Baselines B1/B2 not implemented** (see above); B0 only.
 7. **Fee model**: PM-US T1 taker schedule as of Phase 0 (θ=0.095); Kalshi
    venue routing was never exercised (all fills PM-US). Gas/withdrawal costs

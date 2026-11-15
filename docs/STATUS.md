@@ -20,19 +20,17 @@
   - [x] Validation (Ph2.2): median |realized-PnL error| 0.002% vs chain user_position.
   - [x] Replication (Ph2.4): P(skilled B | skilled A) = 45.1% vs 5.0% base (paper ~44%), 66,400 wallets.
   - [x] Landscape (Ph2.5): 20,510 candidates @2026-02-02; 2.2% skilled; naive∩skill top-20 = 0/20.
-- **Phase 3 (backtest): G1 FAILED on Holdout A; Holdout B (final, once) in flight.**
+- **Phase 3 (backtest): DONE — G1 FAILED (`reports/phase-3.md`). Project stopped per Operating Rule 10.**
   - Staged search done (~90 configs in `data/experiments.parquet`; B0 bands in `data/baselines.parquet`): k_min=3 consensus is the only positive family; Train winner `skill n40 · fresh_flow k3 · 72h · hold · lat30` = +17.0%/109 trades, B0 excess +18.6pp; flat latency decay 1min→4h; ex-election +24%; widening (N, $-floors) dilutes monotonically (capacity frontier).
   - Validation: V1 +25%/14 trades (excess +52pp, P=0.013). d-017 ≥30-trade bar unmet → redesign r1 (widen funnel, d-018) FAILED on Train (−8.8%).
   - **Holdout A (burned, d-019/d-020): 1 signal, 0 trades in 83 days → G1(a) 0/150 → G1 FAIL.** Mechanism: 2026-era skill score drifts to dust-bet longshot farmers (median $1.9/market) that cannot form $250-level consensus.
   - Redesign r2 (last, d-020): selection gate `min_median_market_cost=50` → Train +8.8%/111, **Validation +41.8%/15 trades, CI_lo +1.5%, B0 excess +51.3pp, P=0.010** → final config for Holdout B (hash c87fe433d0c9).
-  - [⏳] Holdout B per d-012: pool frozen (3,695 wallets), `/v2/trades` backfill DONE (37/37 chunks); `scripts/run_holdout_b.py` RUNNING (`scratchpad/holdout_b.log`; features 29/29 cached, prices crawl in flight). Note: `/v2/prices-history` caps spans at 15 days — crawl restricted to the 1,892 signalable conditions (≥k_min distinct watched buyers within one flow window; engine skips missing tapes, non-signalable conditions can't trade) in 14-day chunks.
-  - Phase-3 figures in `reports/figures/`; `reports/phase-3.md` DRAFTED (Holdout B placeholders pending).
+  - [x] Holdout B per d-012 (final, once): pool frozen (3,695 wallets), 37/37 API backfill chunks, 29 weekly refreshes, 1,892 signalable conditions crawled (15-day API span limit → 14-day chunks; native-resolution fallback per d-021, bucket-close timestamps). **Result: 32 signals, 14 resolved trades, ROI −4.9% (CI −43.4%..+35.7%, p=0.61); 15 signals unfillable on coarse pre-Sept tapes.** First (truncated) pass +0.7%/11 preserved at `data/holdout_b/run_300s_truncated/`. Validation's +41.8% does not replicate forward.
+  - [x] `reports/phase-3.md` final: exec summary, results vs B0 (B1/B2 not implemented — disclosed), 5 figures, **G1 decision: FAIL**, full caveats, G1 d/e/g for the record.
 
-## Next (in order)
+## Next
 
-1. Pipeline finishes → fill Holdout B numbers into `reports/phase-3.md`, commit.
-2. "Phase 3 result" issue per Operating Rule 10 (G1 FAIL; offer long-horizon paper observation as an option needing Darren's explicit go-ahead).
-3. STOP (no paper trader without Darren's explicit say-so).
+- None. Project STOPPED per SPEC §9 stop rule / Operating Rule 10 (G1 FAIL, redesign budget consumed, Holdout B null). Phases 4–5 require Darren's explicit instruction; a long-horizon paper *observation* was offered as an option in the Phase-3 issue and also needs his explicit go-ahead.
 
 ## Open blockers
 
