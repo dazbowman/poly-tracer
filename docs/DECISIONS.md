@@ -90,3 +90,13 @@ One entry per non-obvious choice: date, decision, alternatives, reason. Newest l
 - Decision: the §8.2 baseline is computed per saved run as R (default 400) replications; replication r buys, for every matched strategy trade, that trade's r-th sampled opportunity from the (category, TTR-bucket, entry-week, price±2¢) pool at taker-VWAP+1¢ with PM-US fees, sized to the trade's notional. The band is the 2.5–97.5 percentile of the R portfolio ROIs; the strategy ROI it is compared against is recomputed on the matched trades only (unmatched trades, typically <2%, are reported). Pool cells are hourly aggregates of prices_5m with ≥$100 taker-buy flow, resolved markets only. Registry: `data/baselines.parquet` (scripts/run_baseline.py).
 - Alternatives: comparing against the all-trade strategy ROI mixes portfolios when matches are missing; per-trade mean-pnl averaging understates the band's width (it averages away the variance a single matched portfolio actually has).
 - First measurement (Train, default config = skill n20 fresh_flow k2): strategy −5.5% vs B0 mean −6.1%, band (−23%, +15%), excess +0.6%, P(B0 ≥ strategy)=0.48 → the default copy signal shows no alpha over matched random taker buys; its loss is the cost drag.
+
+**d-017 · 2026-11-15 · Validation shortlist (frozen before any Validation run)**
+
+- Train-stage results (full table in `data/experiments.parquet`, §8.4 stages 1–3): consensus depth k_min=3 is the only sign-flipping lever; single-wallet and k=2 variants are cost-dragged noise. Best family: skill-selected N=40, fresh_flow k=3, 72h window, hold-to-resolution — Train ROI +17.0% (109 trades), B0 excess +18.6% (P(B0≥strat)=0.022), ex-Oct/Nov-2024 ROI +24%, flat latency-decay curve (1min→4h), profits spread over politics/crypto/sports (geopolitics negative).
+- Shortlist for ONE pass over Validation (2025-10-01→2026-01-31), ≤3 per SPEC §8.4:
+  - V1 `skill n40 · fresh_flow k3 · 72h · hold · lat30` (Train winner)
+  - V2 `skill n20 · fresh_flow k3 · 72h · hold · lat30` (N-robustness of the same family)
+  - V3 `naive_pnl n10 · holdings k3 · conviction 2.0 · hold · lat30` (the owner's original leaderboard+holdings idea, best Train representative: +13.3%, 48 trades)
+- Decision rule (pre-stated): the config taken to Holdout A is the shortlist member with the highest Validation B0-excess among those with Validation ROI > B0 mean and ≥30 resolved trades; if none qualifies, redesign round 1 (Train/Val only) per the §0 stop rule. Latency stays 30min; no further Train tuning after this entry.
+- Multiple-comparisons caveat recorded: the Train winner is the best of ~72 configs; Train p-values are selection-biased by construction. Validation is the first clean read.
