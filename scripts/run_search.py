@@ -78,7 +78,9 @@ def stage2(cfg0: Config, split: str, t0: int, t1: int, method: str, ns: list[int
             )
         for ovs in grids:
             cfg = apply_overrides(base, ovs)
-            label = f"s2-{method}-n{n}-" + "-".join(o.split(".")[-1].replace("=", "") for o in ovs)
+            # "signal.min_conviction_ratio=2.0" -> "min_conviction_ratio2.0"
+            parts = (o.partition("=") for o in ovs)
+            label = f"s2-{method}-n{n}-" + "-".join(k.split(".")[-1] + v for k, _, v in parts)
             run_experiment(cfg, data, split=split, t_start=t0, t_end=t1, label=label[:80])
 
 
