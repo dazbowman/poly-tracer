@@ -20,13 +20,18 @@
   - [x] Validation (Ph2.2): median |realized-PnL error| 0.002% vs chain user_position.
   - [x] Replication (Ph2.4): P(skilled B | skilled A) = 45.1% vs 5.0% base (paper ~44%), 66,400 wallets.
   - [x] Landscape (Ph2.5): 20,510 candidates @2026-02-02; 2.2% skilled; naive∩skill top-20 = 0/20.
-- **Phase 3 (backtest): engine + harness DONE on synthetic, real run pending.** engine.py (11 tests), fills_backtest.py execution model (tests), fees.py (spec worked examples), stats.py event bootstrap (tests), baselines.py B0 (calibrated-world test), **leakage test in CI**, data.py loader, experiments.py registry, run_backtest.py CLI with overrides.
+- **Phase 3 (backtest): G1 FAILED on Holdout A; Holdout B (final, once) in flight.**
+  - Staged search done (~90 configs in `data/experiments.parquet`; B0 bands in `data/baselines.parquet`): k_min=3 consensus is the only positive family; Train winner `skill n40 · fresh_flow k3 · 72h · hold · lat30` = +17.0%/109 trades, B0 excess +18.6pp; flat latency decay 1min→4h; ex-election +24%; widening (N, $-floors) dilutes monotonically (capacity frontier).
+  - Validation: V1 +25%/14 trades (excess +52pp, P=0.013). d-017 ≥30-trade bar unmet → redesign r1 (widen funnel, d-018) FAILED on Train (−8.8%).
+  - **Holdout A (burned, d-019/d-020): 1 signal, 0 trades in 83 days → G1(a) 0/150 → G1 FAIL.** Mechanism: 2026-era skill score drifts to dust-bet longshot farmers (median $1.9/market) that cannot form $250-level consensus.
+  - Redesign r2 (last, d-020): selection gate `min_median_market_cost=50` → Train +8.8%/111, **Validation +41.8%/15 trades, CI_lo +1.5%, B0 excess +51.3pp, P=0.010** → final config for Holdout B (hash c87fe433d0c9).
+  - [⏳] Holdout B per d-012: pool frozen (3,695 wallets), `/v2/trades` backfill RUNNING (`scratchpad/backfill.log`, resumable via `scripts/backfill_api.py`), then `scripts/run_holdout_b.py` (features → prices-history crawl → engine in price-only fallback mode).
 
 ## Next (in order)
 
-1. Smoke backtest (`run_backtest.py --split smoke`) — first real-data engine run; expect loader/perf issues to shake out.
-2. Staged Train search (§8.4: ≤300 configs, selection×N → signal params → exits), with/without Oct–Nov 2024 reporting.
-3. Validation shortlist ≤3, Holdout A ONCE, Holdout B per d-012 (needs API backfill first). Gate G1 + issue.
+1. Backfill finishes → `scripts/run_holdout_b.py` (steps cached: features, prices, run) → Holdout B result + B0-style context (price-only caveats per d-012/d-020).
+2. Decay/capacity charts (`report/charts.py` on the registry), `reports/phase-3.md` (exec summary, results vs baselines, G1 FAIL decision, caveats), "Phase 3 result" issue per Operating Rule 10.
+3. STOP after the report (no paper trader without Darren's explicit say-so; suggest a long-horizon paper observation as an option in the issue).
 
 ## Open blockers
 
