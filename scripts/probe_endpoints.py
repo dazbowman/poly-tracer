@@ -257,7 +257,7 @@ def run_http_probes(p: Prober) -> None:
                 "order": "volume24hr",
                 "ascending": "false",
                 "offset": 2,
-            },  # noqa: E501
+            },
             require=lambda b: (
                 None
                 if isinstance(b, list) and b and b[0]["conditionId"] != mkts[0]["conditionId"]
