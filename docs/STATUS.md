@@ -2,34 +2,37 @@
 
 > Read this first when resuming. Keep it current: what's done, what's next, open blockers.
 
-**Last updated:** 2026-11-15 (session 1)
+**Last updated:** 2026-11-15 ~01:10 UTC (session 1)
 
 ## Where things stand
 
-- **Phase 0 (bootstrap): done pending CI confirmation on GitHub.**
-  - [x] Repo scaffolded: pyproject (uv, ruff, pytest), CI, config loader + default.yaml, docs.
-  - [x] Spec committed verbatim to `docs/SPEC.md` (first commit).
-  - [x] Environment checked: 4 CPU, 15 GB RAM, ~31 GB free disk. Python 3.13 locally, project pins 3.12 via uv. All data hosts reachable from this environment (no geoblock on reads).
-  - [x] `scripts/probe_endpoints.py`: 28/28 probes PASS; 21 trimmed fixtures in `tests/fixtures/`; findings in DATA_NOTES (highlights: v1 leaderboard is HTTP 410-retired; leaderboard `sort_by` wants uppercase `PNL`; activity has a `MIGRATION` type; PM-US ships `feeCoefficient=0.095` per market; Kalshi orderbook key is `orderbook_fp`; `/v2/resolutions.price` units are suspect — don't use for payouts yet).
-  - [ ] CI green on GitHub (push + check pending).
+- **Phase 0 (bootstrap): DONE.** 28/28 endpoint probes pass, fixtures committed, DATA_NOTES filled, CI green on `claude/dreamy-gates-8wlal5`.
+- **Phase 1 (data layer): ~70%, long jobs running.**
+  - [x] Gamma catalog crawler (keyset, `closed` both ways). **Full crawl RUNNING in background** (closed-market ids reach ~7M; crawl takes hours). Partial `data/markets.parquet` (56KB, 3-page smoke) will be overwritten when it completes — check `ps aux | grep build_catalog`; relaunch `uv run python scripts/build_catalog.py` if dead (page cache makes re-runs cheap).
+  - [x] `chain_condition_map.parquet` BUILT: 1.117M conditions, 992k resolved, token order verified == Gamma. Pass 2 and payouts do NOT wait on the Gamma crawl; the crawl supplies resolved_ts/categories/events for features and backtest.
+  - [x] Universe pass 1 DONE: 8.24M wallet-months, 2.63M wallets; loose candidates 532k (96.6% vol); extraction set per d-013: 164,576 wallets (33% vol, 313M legs) in `data/universe/candidates_extract.parquet`.
+  - [⏳] Pass 2 (fills_norm + prices_5m) RUNNING: `scratchpad/pass2.log`, was [13/28] monthly files at ~80s. 2026 months are 8-sliced; resumable (re-run `scripts/build_fills.py`).
+  - [⏳] wallet_events + wallet_map RUNNING: `scratchpad/wallet_events.log` (`scripts/build_wallet_events.py`, resumable).
+  - [ ] Sanity checks (§9 Phase 1.6) + `reports/phase-1.md`.
+  - [ ] API backfill deferred by design to Phase 3 Holdout-B time (DECISIONS d-012).
+- **Phase 2 (wallet analytics): code DONE, data pending.** positions.py (+tests), pnl.py vectorized market returns (+tests), skill.py sign-test/BH/score (+tests), features.py as-of pipeline (+synthetic tests), select.py both methods (+tests). To run: `scripts/build_features.py` (needs catalog + pass 2), then validation vs user_position (§9 Ph2.2), replication check (Ph2.4), landscape report (Ph2.5).
+- **Phase 3 (backtest): engine + harness DONE on synthetic, real run pending.** engine.py (11 tests), fills_backtest.py execution model (tests), fees.py (spec worked examples), stats.py event bootstrap (tests), baselines.py B0 (calibrated-world test), **leakage test in CI**, data.py loader, experiments.py registry, run_backtest.py CLI with overrides.
 
-## Next
+## Next (in order)
 
-1. Push, confirm CI is green → Phase 0 closed.
-2. Phase 1 (data layer and catalog), in order:
-   a. `util/` HTTP client with rate limit + retries + disk cache; pydantic models for used fields.
-   b. Gamma catalog → `data/markets.parquet` (open+closed, category buckets, payouts). Resolve the payout question (Gamma `outcomePrices` of resolved markets vs `/v2/resolutions` — decode units first).
-   c. Universe pass 1: DuckDB streaming aggregate over HF `order_filled` 2024-01→2026-04 (wallet-month volume/trades/tokens) → candidate wallets (≥$10k vol in any 180d window). Resolve proxies via `wallet.parquet`.
-   d. Pass 2: `fills_norm` for candidates + `prices_5m` for all tokens, monthly parquet.
-   e. API backfill 2026-04-24→now for candidates active Mar–Apr 2026 (`source='api'`).
-   f. Sanity checks (≥99% token→market mapping; plausible monthly volumes; 20 fills cross-checked vs `/v2/trades`) → `reports/phase-1.md`.
+1. When pass 2 + catalog finish: run `scripts/build_features.py` (writes `data/features/asof=*.parquet`, ~90 Mondays).
+2. Phase 1 sanity checks + `reports/phase-1.md`.
+3. Phase 2 validation (50 wallets vs user_position.realizedPnl + Data API), replication check, `reports/phase-2.md`.
+4. Smoke backtest (`run_backtest.py --split smoke`), then staged Train search (§8.4: ≤300 configs, selection×N → signal params → exits), Validation shortlist ≤3, Holdout A ONCE. Gate G1.
 
 ## Open blockers
 
-- None.
+- None hard. Watch disk (~28G free; pass-2 outputs est 10-15GB).
 
 ## Standing constraints (never stale)
 
 - Paper trading only; no keys, no accounts, no geoblock circumvention (SPEC §0).
-- Work happens on branch `claude/dreamy-gates-8wlal5`; `main` only moves by PR (see DECISIONS d-002).
-- Disk allowance ~31 GB: never download the 127 GB HF dataset; stream via DuckDB `hf://` with partition pruning and projection.
+- Never tune on holdouts; G1 criteria are §9's, pre-registered.
+- Work on branch `claude/dreamy-gates-8wlal5`; main via PR only (d-002).
+- Disk ~31GB allowance: stream HF via DuckDB; big months sliced (d-011); extraction capped (d-013).
+- Background jobs log to the session scratchpad; all are resumable per-file/per-slice.
