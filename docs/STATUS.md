@@ -15,16 +15,18 @@
   - [x] wallet_events (33.4M rows) + wallet_map (163k).
   - [x] Sanity checks: mapping coverage 100.00% (3 sample months); API cross-check 19/20 (d-015); position replay vs user_position median |err| 0.002%.
   - [ ] API backfill deferred by design to Phase 3 Holdout-B time (DECISIONS d-012).
-- **Phase 2 (wallet analytics): code DONE (validation §9 Ph2.2 already PASSED), features cache building.**
-  - [⏳] `scripts/build_features.py` RUNNING detached (log: `scratchpad/features.log`): one-time `data/market_returns/bucket_*.parquet` precompute, then ~96 Mondays of `data/features/asof=*.parquet` + `naive=*.parquet`. Resumable per-file; just rerun the same command if it dies.
-  - Then: replication check (Ph2.4), landscape report (Ph2.5) → `reports/phase-2.md`, issue.
+- **Phase 2 (wallet analytics): DONE** (`reports/phase-2.md`).
+  - [x] Features cache: 96 Mondays (2024-06-24→2026-04-20) in `data/features/` (asof= + naive= per date) + `data/market_returns/bucket_*.parquet` precompute. Two cgroup OOMs on peak 2026 windows fixed by gate-prefiltered detail aggregates + wallet-hash bucketing (commits 5eb011e, 6a259e0-ish).
+  - [x] Validation (Ph2.2): median |realized-PnL error| 0.002% vs chain user_position.
+  - [x] Replication (Ph2.4): P(skilled B | skilled A) = 45.1% vs 5.0% base (paper ~44%), 66,400 wallets.
+  - [x] Landscape (Ph2.5): 20,510 candidates @2026-02-02; 2.2% skilled; naive∩skill top-20 = 0/20.
 - **Phase 3 (backtest): engine + harness DONE on synthetic, real run pending.** engine.py (11 tests), fills_backtest.py execution model (tests), fees.py (spec worked examples), stats.py event bootstrap (tests), baselines.py B0 (calibrated-world test), **leakage test in CI**, data.py loader, experiments.py registry, run_backtest.py CLI with overrides.
 
 ## Next (in order)
 
-1. Features build finishes → spot-check a few asof dates (candidate counts, label mix, score distribution).
-2. `scripts/replication_check.py`, `scripts/phase2_report.py` → `reports/phase-2.md` + "Phase 2 complete" issue.
-3. Smoke backtest (`run_backtest.py --split smoke`), then staged Train search (§8.4: ≤300 configs, selection×N → signal params → exits), Validation shortlist ≤3, Holdout A ONCE. Gate G1.
+1. Smoke backtest (`run_backtest.py --split smoke`) — first real-data engine run; expect loader/perf issues to shake out.
+2. Staged Train search (§8.4: ≤300 configs, selection×N → signal params → exits), with/without Oct–Nov 2024 reporting.
+3. Validation shortlist ≤3, Holdout A ONCE, Holdout B per d-012 (needs API backfill first). Gate G1 + issue.
 
 ## Open blockers
 
